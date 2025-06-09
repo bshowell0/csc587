@@ -1,0 +1,10 @@
+- change of scope
+  - Instead of customizing a fully personalized local assistant, which I now don't want to do because sourcing the data for that (a bunch of facts about myself) would be hard, I think I will train it on basic facts about myself pertaining to interview and related stuff. For me this is basic interview things about myself, and code projects that I've written.
+  - Basic facts include but not limited to:
+    - name
+    - goal
+    - school
+    - work experience
+    - common interview questions
+  - My code includes:
+    - My github repos
