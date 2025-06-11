@@ -1,0 +1,4916 @@
+Directory structure:
+└── the-chickens-x5-chicken-tinder/
+    ├── README.md
+    ├── package.json
+    ├── .eslintignore
+    ├── .eslintrc.json
+    ├── .prettierrc
+    ├── docs/
+    ├── packages/
+    │   ├── backend/
+    │   │   ├── auth.js
+    │   │   ├── decision.js
+    │   │   ├── flock-services.js
+    │   │   ├── flock.js
+    │   │   ├── index.js
+    │   │   ├── package-lock.json
+    │   │   ├── package.json
+    │   │   ├── .eslintrc
+    │   │   ├── code-generation/
+    │   │   │   ├── adjectives.txt
+    │   │   │   ├── code-generator.js
+    │   │   │   └── foods.txt
+    │   │   └── services/
+    │   │       └── tenor.js
+    │   ├── frontend/
+    │   │   ├── README.md
+    │   │   ├── netlify.toml
+    │   │   ├── package.json
+    │   │   ├── tailwind.config.js
+    │   │   ├── .gitignore
+    │   │   ├── public/
+    │   │   │   ├── _redirects
+    │   │   │   ├── index.html
+    │   │   │   ├── manifest.json
+    │   │   │   └── robots.txt
+    │   │   └── src/
+    │   │       ├── App.js
+    │   │       ├── index.css
+    │   │       ├── index.js
+    │   │       ├── components/
+    │   │       │   ├── Header.js
+    │   │       │   ├── ProtectedPage.js
+    │   │       │   ├── Table.js
+    │   │       │   └── Input/
+    │   │       │       ├── Buttons.js
+    │   │       │       ├── Input.js
+    │   │       │       ├── Text.js
+    │   │       │       └── TextButtonInput.js
+    │   │       ├── context/
+    │   │       │   ├── auth-context.js
+    │   │       │   └── coop-context.js
+    │   │       ├── images/
+    │   │       └── pages/
+    │   │           ├── GroupListPage.js
+    │   │           ├── LoadingPage.js
+    │   │           ├── LoginPage.js
+    │   │           ├── MainFlockPage.js
+    │   │           ├── NameFormPage.js
+    │   │           ├── NominationPage.js
+    │   │           ├── RegisterPage.js
+    │   │           ├── TutorialPage.js
+    │   │           ├── VotingPage.js
+    │   │           ├── WelcomePage.js
+    │   │           └── WinnerPage.js
+    │   └── testing/
+    │       ├── cypress.config.js
+    │       ├── package.json
+    │       ├── .eslintrc
+    │       └── cypress/
+    │           ├── e2e/
+    │           │   └── single-user.cy.js
+    │           ├── fixtures/
+    │           │   └── example.json
+    │           └── support/
+    │               ├── commands.js
+    │               └── e2e.js
+    └── .github/
+        └── workflows/
+            ├── ci-cd_chickentinder-backend.yml
+            ├── ci-testing.yml
+            └── frontend-deploy.yml
+
+================================================
+FILE: README.md
+================================================
+# Chicken Tinder
+
+This is the monorepo for Chicken Tinder.
+
+Product Vision: For friend groups who can’t decide where to eat in a timely manner, Chicken Tinder is a web app that collects food preferences within groups and picks a restaurant catered to the group’s preferences. Unlike Yelp, our product enables collaboration within customizable groups of users.
+
+The deployed app can be viewed at: https://thechickens.netlify.app
+
+And the backend can be accessed from: https://chickentinder-backend.azurewebsites.net/
+
+[Here is a video demo of our product](https://drive.google.com/file/d/1Eo5CBs-h_l4akQ4Ad6qsmYZaXKlyAX-n/view?usp=sharing) (last updated 3/13/24)
+
+## Artifacts
+
+UI prototypes and designs are located in Figma (last updated 2/27/24):
+
+-   [Designs](https://www.figma.com/file/NYJDxRDX5nzyrkO2d03S7I/Chicken-Tinder?type=design&node-id=0%3A1&mode=design&t=a2ww8RXXaC2aStSE-1)
+-   [Prototype](https://www.figma.com/proto/NYJDxRDX5nzyrkO2d03S7I/Chicken-Tinder?type=design&node-id=269-111&t=7F6iy4C3B3gihSNp-0&scaling=min-zoom&starting-point-node-id=269%3A111&show-proto-sidebar=1)
+
+Class diagram (last updated 3/12/24): ![class diagram image](./docs/schema.jpg)
+
+## Development
+
+This script clones the repo (with SSH) and creates the necessary `.env` files. The backend env file must be configured with the relevant secrets. The JWT secret key can be any string.
+
+```
+git clone git@github.com:the-chickens-x5/chicken-tinder.git
+cd chicken-tinder
+npm install
+echo 'DB_PASSWORD=copy_password_here \nTENOR_API_KEY=copy_key_here \nJWT_SECRET_KEY=copy_key_here' > ./packages/backend/.env
+echo 'REACT_APP_API_URL=http://localhost:8000' > ./packages/frontend/.env
+```
+
+To start up local instances:
+
+```
+npm run backend-dev
+npm run frontend-dev
+```
+
+Before commiting/pushing, maintain style conventions with:
+
+```
+npm run format
+npm run lint
+```
+
+## Testing
+
+To run Cypress testing once:
+
+```
+npm run test
+```
+
+To open the Cypress GUI (make sure the frontend and backend are both up):
+
+```
+npm -w testing run cy:open
+```
+
+### Frontend Environment Variables
+
+In general, if you want to add your own env variable, use `REACT_APP_{varname}={varval}`. Then you can read it with `process.env.REACT_APP_{varname}`.
+
+
+
+================================================
+FILE: package.json
+================================================
+{
+	"name": "chicken-tinder",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"lint": "npx eslint . && npx prettier . --check",
+		"start": "npm -w backend run start",
+		"start:backend": "npm -w backend run start",
+		"start:frontend": "npm -w frontend run start",
+		"cy:run": "npm -w testing run cy:run",
+		"test": "start-server-and-test start:backend 8000 start:frontend 3000 cy:run",
+		"format": "npx prettier . --write",
+		"frontend-dev": "npm -w frontend run start",
+		"backend-dev": "npm -w backend run dev"
+	},
+	"author": "",
+	"license": "ISC",
+	"workspaces": [
+		"packages/*"
+	],
+	"dependencies": {
+		"eslint": "^8.57.0",
+		"js-cookie": "^3.0.5",
+		"prettier": "^3.2.5"
+	},
+	"devDependencies": {
+		"eslint-plugin-cypress": "^2.15.1",
+		"eslint-plugin-react": "^7.33.2",
+		"nodemon": "^3.1.0",
+		"start-server-and-test": "^2.0.3"
+	}
+}
+
+
+
+================================================
+FILE: .eslintignore
+================================================
+build/
+
+
+================================================
+FILE: .eslintrc.json
+================================================
+{
+	"extends": ["eslint:recommended", "plugin:react/recommended"],
+	"env": {
+		"browser": true,
+		"es2023": true
+	},
+	"parserOptions": {
+		"ecmaFeatures": {
+			"jsx": true
+		},
+		"sourceType": "module"
+	},
+	"rules": {
+		"consistent-return": "error",
+		"eqeqeq": "warn",
+		"react/prop-types": 0
+	},
+	"settings": {
+		"react": {
+			"version": "detect"
+		}
+	}
+}
+
+
+
+================================================
+FILE: .prettierrc
+================================================
+{
+	"tabWidth": 4,
+	"useTabs": true,
+	"semi": true,
+	"printWidth": 100,
+	"singleQuote": false,
+	"trailingComma": "es5",
+	"bracketSpacing": true,
+	"arrowParens": "always",
+	"endOfLine": "lf"
+}
+
+
+
+
+================================================
+FILE: packages/backend/auth.js
+================================================
+import jwt from "jsonwebtoken";
+
+export function getUserId(req, res, sendError = true) {
+	try {
+		const authHeader = req.headers.authorization;
+		if (!authHeader) {
+			if (sendError) {
+				res.status(401).send({ message: "Unauthorized" });
+			}
+			return null;
+		}
+		const token = authHeader.split(" ")[1];
+		const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+		if (decoded.expiration < Math.floor(Date.now() / 1000)) {
+			if (sendError) {
+				res.status(401).send({ error: "token expired" });
+			}
+			return null;
+		}
+		return decoded.henID;
+	} catch {
+		if (sendError) {
+			res.status(401).send({ error: "token malformed" });
+		}
+		return null;
+	}
+}
+
+
+
+================================================
+FILE: packages/backend/decision.js
+================================================
+import { findFlockByCode } from "./flock-services.js";
+
+async function getWinningRestaurant(coopName) {
+	let flock = await findFlockByCode(coopName);
+
+	let bestRestaurant = null;
+	let highestYesVotes = -Infinity;
+	let highestYesToNoRatio = -Infinity;
+
+	if (!flock.basket) {
+		return null;
+	}
+
+	// Loop through each restaurant
+	for (let restaurant of flock.basket) {
+		// If the restaurant has more "yes" votes than any other restaurant so far,
+		// it's the new best restaurant
+		if (restaurant.yesVotes > highestYesVotes) {
+			bestRestaurant = restaurant;
+			highestYesVotes = restaurant.yesVotes;
+			highestYesToNoRatio =
+				restaurant.noVotes === 0
+					? restaurant.yesVotes
+					: restaurant.yesVotes / restaurant.noVotes;
+		}
+		// If there's a tie in "yes" votes,
+		// calculate the ratio of "yes" to "no" votes to break the tie
+		else if (restaurant.yesVotes === highestYesVotes) {
+			let currentRatio =
+				restaurant.noVotes === 0
+					? restaurant.yesVotes
+					: restaurant.yesVotes / restaurant.noVotes;
+			if (currentRatio > highestYesToNoRatio) {
+				bestRestaurant = restaurant;
+				highestYesToNoRatio = currentRatio;
+			}
+		}
+	}
+
+	// If no votes were cast, return null
+	if (highestYesVotes === 0) {
+		return null;
+	}
+
+	// Return the name of the best restaurant (highest "yes" to "no" ratio),
+	// or null if there are no restaurants
+	return bestRestaurant ? bestRestaurant.title : null;
+}
+
+export default getWinningRestaurant;
+
+
+
+================================================
+FILE: packages/backend/flock-services.js
+================================================
+import mongoose from "mongoose";
+import { Flock, Hen } from "./flock.js";
+import process from "process";
+import codeGenerator from "./code-generation/code-generator.js";
+import dotenv from "dotenv";
+import bcrypt from "bcrypt";
+
+dotenv.config();
+
+const db_password = process.env.DB_PASSWORD;
+const url = `mongodb+srv://shareduser:${db_password}@ctcluster0.6s3myd5.mongodb.net/?retryWrites=true&w=majority`;
+
+mongoose.connect(url, { dbName: "chicken-tinder" }).catch((error) => console.error(error));
+
+async function findFlockByCode(code) {
+	return Flock.findOne({ coopName: code });
+}
+
+async function findHenByEmail(email) {
+	return Hen.findOne({ email: email });
+}
+
+async function createFlock(creatorId) {
+	const code = codeGenerator.generateCode();
+	let curNum = 0;
+	// Check to see if the code already exists by finding
+	// a flock with that code
+	let finalCode = code;
+	while (await findFlockByCode(finalCode)) {
+		curNum++;
+		finalCode = `${code}${curNum}`;
+	}
+	const flock = new Flock({ coopName: finalCode, chicks: [], basket: [], owner: creatorId });
+	return flock.save();
+}
+/**
+ *
+ * @param {String} code
+ * @param {String} title
+ * @returns restaurant name that has been added, null if already exists
+ */
+async function createEgg(code, title) {
+	const flock = await findFlockByCode(code);
+	const egg = { title: title };
+	if (flock.basket.some((egg) => egg.title === title)) {
+		return null;
+	}
+	flock.basket.push(egg);
+	await flock.save();
+
+	return { egg: egg, newFlock: flock };
+}
+
+/**
+ * Adds a chick to the flock document unless the chick name already exists
+ * @param {String} coopName
+ * @param {String} chickName
+ * @returns the chick name if added, null if chick already exists
+ */
+async function addChickToFlock(coopName, chickName) {
+	const flock = await findFlockByCode(coopName);
+
+	// if name already exists, ignore
+	if (flock.chicks.some((chick) => chick.name === chickName)) {
+		return null;
+	}
+
+	flock.chicks.push({ name: chickName, votes: [] });
+	await flock.save();
+	const chick = flock.chicks.find((chick) => chick.name === chickName);
+	return { chick: chick, newFlock: flock };
+}
+
+async function createHen(henName, henEmail, henPass) {
+	const hash = bcrypt.hashSync(henPass, 10);
+	const hen = new Hen({ henName: henName, email: henEmail, hash: hash });
+	hen.save();
+	return hen;
+}
+export { findFlockByCode, findHenByEmail, createFlock, addChickToFlock, createEgg, createHen };
+
+
+
+================================================
+FILE: packages/backend/flock.js
+================================================
+import mongoose from "mongoose";
+
+const preferenceSchema = new mongoose.Schema({
+	egg: {
+		type: mongoose.ObjectId, // reference to an egg
+		required: true,
+	},
+	vote: {
+		type: Number, // 1 for up, -1 for down
+		required: true,
+		default: 0,
+	},
+});
+
+const chickSchema = new mongoose.Schema({
+	name: {
+		type: String,
+		required: true,
+		trim: true,
+	},
+	preferences: [preferenceSchema],
+});
+
+const eggSchema = new mongoose.Schema({
+	title: {
+		type: String,
+		required: true,
+		trim: true,
+	},
+	yesVotes: {
+		type: Number,
+		required: true,
+		default: 0,
+	},
+	noVotes: {
+		type: Number,
+		required: true,
+		default: 0,
+	},
+});
+
+const flockSchema = new mongoose.Schema(
+	{
+		coopName: {
+			// unique identifier for the flock (e.g. "flyingtaco")
+			type: String,
+			required: true,
+			trim: true,
+			unique: true,
+		},
+		chicks: [chickSchema],
+		basket: [eggSchema],
+		owner: {
+			type: mongoose.ObjectId,
+			required: true,
+		},
+		step: {
+			type: Number,
+			required: true,
+			default: 1,
+		},
+	},
+	{ collection: "flocks", timestamps: true }
+);
+
+const henSchema = new mongoose.Schema({
+	henName: {
+		type: String,
+		required: true,
+		trim: true,
+		unique: true,
+	},
+	email: {
+		type: String,
+		required: true,
+		trim: true,
+		unique: true,
+	},
+	hash: {
+		type: String,
+		required: true,
+	},
+});
+
+const Flock = mongoose.model("Flock", flockSchema);
+const Hen = mongoose.model("Hen", henSchema);
+
+export { Flock, Hen };
+
+
+
+================================================
+FILE: packages/backend/index.js
+================================================
+import express from "express";
+import cors from "cors";
+import getWinningRestaurant from "./decision.js";
+import {
+	findFlockByCode,
+	createFlock,
+	addChickToFlock,
+	createEgg,
+	createHen,
+	findHenByEmail,
+} from "./flock-services.js";
+import http from "http";
+import { Server } from "socket.io";
+import { getTenorGIF } from "./services/tenor.js";
+import dotenv from "dotenv";
+import bcrypt from "bcrypt";
+import { getUserId } from "./auth.js";
+import jwt from "jsonwebtoken";
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const port = 8000;
+
+const io = new Server(server, {
+	cors: {
+		origin: "*",
+		methods: ["GET", "POST"],
+	},
+});
+
+io.on("connection", (socket) => {
+	socket.on("join-flock", (code) => {
+		socket.join(code);
+	});
+	socket.on("leave-flock", (code) => {
+		socket.leave(code);
+	});
+});
+
+app.use(express.json());
+app.use(cors());
+
+app.get("/", (req, res) => {
+	res.send("Hello World!");
+});
+
+app.post("/auth/login", async (req, res) => {
+	const email = req.body.email;
+	const pass = req.body.pass;
+
+	try {
+		const hen = await findHenByEmail(email);
+		if (!hen) {
+			res.status(401).send("Hen not found.");
+		} else {
+			const currentUnixTimeInSeconds = Math.floor(Date.now() / 1000);
+			if (bcrypt.compareSync(pass, hen.hash)) {
+				const token = jwt.sign(
+					{ henID: hen._id, expiration: currentUnixTimeInSeconds + 3600 },
+					process.env.JWT_SECRET_KEY
+				);
+				res.send({ token: token });
+			} else {
+				res.status(403).send({ error: "wrong credentials" });
+			}
+		}
+	} catch (e) {
+		console.error(e);
+		res.status(401).send(e);
+	}
+});
+
+app.post("/auth/register", async (req, res) => {
+	try {
+		console.log(req.body);
+		const hen = await createHen(req.body.name, req.body.email, req.body.pass);
+		res.status(201).send(hen);
+	} catch (e) {
+		console.error(e);
+		res.status(500).send("Failed to create hen");
+	}
+});
+
+app.get("/auth/check", async (req, res) => {
+	const token = req.headers.authorization.split(" ")[1];
+	try {
+		const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+		if (decoded.expiration < Math.floor(Date.now() / 1000)) {
+			res.status(401).send({ error: "token expired" });
+		} else {
+			res.status(200).send({ message: "token valid" });
+		}
+	} catch (e) {
+		res.status(401).send({ error: "invalid token" });
+	}
+});
+
+app.post("/flocks", async (req, res) => {
+	try {
+		const userId = await getUserId(req, res);
+		if (!userId) {
+			return;
+		}
+		const flock = await createFlock(userId);
+		res.status(201).send(flock);
+	} catch (e) {
+		res.status(500).send("Failed to create flock");
+	}
+});
+
+app.get("/flocks/:code", async (req, res) => {
+	const flock = await findFlockByCode(req.params.code);
+	if (flock) {
+		res.send(flock);
+	} else {
+		res.status(404).send({ message: "Flock not found" });
+	}
+});
+
+app.post("/flocks/:code/step", async (req, res) => {
+	const flock = await findFlockByCode(req.params.code);
+	const userId = await getUserId(req, res);
+	// getUserId sends so we don't need to in case of userId not being owner
+
+	if (userId !== flock.owner.toString()) {
+		return;
+	}
+
+	const newStep = req.body.step || flock.step + 1;
+	flock.step = newStep;
+	try {
+		await flock.save();
+	} catch {
+		// no-op big sad
+	}
+	io.to(req.params.code).emit("message", { type: "flock-updated", newState: flock });
+	res.send(flock);
+});
+
+app.post("/flocks/:coopName/chicks", async (req, res) => {
+	const chickAndFlock = await addChickToFlock(req.params.coopName, req.body.name);
+
+	if (!chickAndFlock) {
+		res.status(400).send({ message: "Chick already exists" });
+		return;
+	}
+
+	io.to(req.params.coopName).emit("message", {
+		type: "flock-updated",
+		newState: chickAndFlock["newFlock"],
+	});
+	res.send(chickAndFlock["chick"]);
+});
+
+app.delete("/flocks/:code", (req, res) => {
+	res.send(`Flock ${req.params.code} deleted`);
+});
+
+app.get("/flocks/:code/chicks", async (req, res) => {
+	try {
+		const flock = await findFlockByCode(req.params.code);
+		const chickNames = flock.chicks.map((chick) => chick.name);
+		res.json(chickNames);
+	} catch (error) {
+		res.status(500).json({ error: "An error occurred fetching chicks" });
+	}
+});
+
+app.get("/flocks/:code/chicks/:id", async (req, res) => {
+	try {
+		const flock = await findFlockByCode(req.params.code);
+		const chick = flock.chicks.find((chick) => chick._id === req.params.id);
+		if (!chick) {
+			res.status(404).send({ message: "Chick not found" });
+		}
+		res.json(chick);
+	} catch (error) {
+		res.status(500).json({ error: "An error occurred fetching chick" });
+	}
+});
+
+app.post("/flocks/:coopName/basket/:title", async (req, res) => {
+	try {
+		const egg = await createEgg(req.params.coopName, req.params.title);
+		if (!egg) {
+			res.status(409).send({ message: "egg already exists" });
+		} else {
+			io.to(req.params.coopName).emit("message", {
+				type: "flock-updated",
+				newState: egg.newFlock,
+			});
+			res.status(201).send(egg.egg);
+		}
+	} catch (e) {
+		res.status(500).send("Failed to create egg");
+	}
+});
+
+app.get("/flocks/:code/basket", async (req, res) => {
+	try {
+		const flock = await findFlockByCode(req.params.code);
+		const eggNames = flock.basket.map((egg) => egg.title);
+		res.json(eggNames);
+	} catch (error) {
+		res.status(500).json({ error: "An error occurred fetching eggs" });
+	}
+});
+
+app.delete("/flocks/:coopName/basket", async (req, res) => {
+	const flock = await findFlockByCode(req.params.coopName);
+	flock.basket = [];
+	flock.chicks.forEach((chick) => {
+		chick.preferences = [];
+	});
+	try {
+		await flock.save();
+	} catch {
+		// no-op big sad
+	}
+	res.status(200).send();
+});
+
+app.get("/flocks/:coopName/decision", async (req, res) => {
+	const restaurantName = await getWinningRestaurant(req.params.coopName);
+	if (!restaurantName) {
+		res.status(404).send({ message: "Decision not available" });
+		return;
+	}
+	res.send({ winner: restaurantName });
+});
+
+app.post("/flocks/:coopName/:chick/vote", async (req, res) => {
+	const coopName = req.params.coopName;
+	const chickName = req.params.chick;
+	const egg = req.body.egg;
+
+	const flock = await findFlockByCode(coopName);
+	if (!flock) {
+		res.status(404).send({ message: "Flock not found" });
+		return;
+	}
+	const chick = flock.chicks.find((chick) => chick.name === chickName);
+	if (!chick) {
+		res.status(404).send({ message: "Chick not found" });
+		return;
+	}
+
+	// handle the incoming vote
+	let voteStatus;
+	if (!egg) {
+		voteStatus = "no vote";
+	} else {
+		if (chick.preferences.some((pref) => pref.egg === egg._id)) {
+			voteStatus = "duplicate";
+		} else {
+			// add vote to chick's preferences
+			chick.preferences.push({ egg: egg._id, vote: egg.vote });
+
+			// add vote to running total
+			if (egg.vote === 1) {
+				flock.basket.id(egg._id).yesVotes++;
+			} else if (egg.vote === -1) {
+				flock.basket.id(egg._id).noVotes++;
+			}
+
+			voteStatus = "received";
+		}
+	}
+
+	// get a restaurant that hasn't been voted on yet
+	const existingVotes = chick.preferences.map((preference) => preference.egg.toString());
+	const remainingOptions = flock.basket.filter(
+		(egg) => !existingVotes.includes(egg._id.toString())
+	);
+
+	if (remainingOptions.length === 0) {
+		const userId = await getUserId(req, res, false);
+		if (userId === flock.owner.toString()) {
+			flock.step += 1;
+			io.to(req.params.coopName).emit("message", { type: "flock-updated", newState: flock });
+			try {
+				await flock.save();
+			} catch {
+				// no-op big sad
+			}
+		}
+		res.status(204).send();
+		return;
+	}
+
+	// return a random restaurant
+	const randomIndex = Math.floor(Math.random() * remainingOptions.length);
+	const newEgg = {
+		_id: remainingOptions[randomIndex]._id,
+		title: remainingOptions[randomIndex].title,
+	};
+
+	const gifUrl = await getTenorGIF(newEgg.title);
+	try {
+		await flock.save();
+	} catch {
+		// no-op big sad
+	}
+	res.send({ voteStatus: voteStatus, egg: newEgg, gifUrl: gifUrl });
+});
+
+server.listen(process.env.PORT || port, () => {
+	console.log(`Server listening at http://localhost:${port}`);
+});
+
+
+
+================================================
+FILE: packages/backend/package-lock.json
+================================================
+
+
+
+================================================
+FILE: packages/backend/package.json
+================================================
+{
+	"name": "backend",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\"",
+		"dev": "nodemon index.js",
+		"start": "node index.js"
+	},
+	"type": "module",
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"bcrypt": "^5.1.1",
+		"buffer-equal-constant-time": "^1.0.1",
+		"cors": "^2.8.5",
+		"dotenv": "^16.4.5",
+		"ecdsa-sig-formatter": "^1.0.11",
+		"express": "^4.18.3",
+		"jsonwebtoken": "^9.0.2",
+		"mongoose": "^8.2.0",
+		"nodemon": "^3.1.0",
+		"socket.io": "^4.7.4"
+	}
+}
+
+
+
+================================================
+FILE: packages/backend/.eslintrc
+================================================
+{
+    "globals": {
+        "process": "readonly"
+    }
+}
+
+
+================================================
+FILE: packages/backend/code-generation/adjectives.txt
+================================================
+abandoned
+able
+absolute
+adorable
+adventurous
+academic
+acceptable
+acclaimed
+accomplished
+accurate
+aching
+acidic
+acrobatic
+active
+actual
+adept
+admirable
+admired
+adolescent
+adorable
+adored
+advanced
+afraid
+affectionate
+aged
+aggravating
+aggressive
+agile
+agitated
+agonizing
+agreeable
+ajar
+alarmed
+alarming
+alert
+alienated
+alive
+all
+altruistic
+amazing
+ambitious
+ample
+amused
+amusing
+anchored
+ancient
+angelic
+angry
+anguished
+animated
+annual
+another
+antique
+anxious
+any
+apprehensive
+appropriate
+apt
+arctic
+arid
+aromatic
+artistic
+ashamed
+assured
+astonishing
+athletic
+attached
+attentive
+attractive
+austere
+authentic
+authorized
+automatic
+avaricious
+average
+aware
+awesome
+awful
+awkward
+babyish
+bad
+back
+baggy
+bare
+barren
+basic
+beautiful
+belated
+beloved
+beneficial
+better
+best
+bewitched
+big
+big-hearted
+biodegradable
+bite-sized
+bitter
+black
+black-and-white
+bland
+blank
+blaring
+bleak
+blind
+blissful
+blond
+blue
+blushing
+bogus
+boiling
+bold
+bony
+boring
+bossy
+both
+bouncy
+bountiful
+bowed
+brave
+breakable
+brief
+bright
+brilliant
+brisk
+broken
+bronze
+brown
+bruised
+bubbly
+bulky
+bumpy
+buoyant
+burdensome
+burly
+bustling
+busy
+buttery
+buzzing
+calculating
+calm
+candid
+canine
+capital
+carefree
+careful
+careless
+caring
+cautious
+cavernous
+celebrated
+charming
+cheap
+cheerful
+cheery
+chief
+chilly
+chubby
+circular
+classic
+clean
+clear
+clear-cut
+clever
+close
+closed
+cloudy
+clueless
+clumsy
+cluttered
+coarse
+cold
+colorful
+colorless
+colossal
+comfortable
+common
+compassionate
+competent
+complete
+complex
+complicated
+composed
+concerned
+concrete
+confused
+conscious
+considerate
+constant
+content
+conventional
+cooked
+cool
+cooperative
+coordinated
+corny
+corrupt
+costly
+courageous
+courteous
+crafty
+crazy
+creamy
+creative
+creepy
+criminal
+crisp
+critical
+crooked
+crowded
+cruel
+crushing
+cuddly
+cultivated
+cultured
+cumbersome
+curly
+curvy
+cute
+cylindrical
+damaged
+damp
+dangerous
+dapper
+daring
+darling
+dark
+dazzling
+dead
+deadly
+deafening
+dear
+dearest
+decent
+decimal
+decisive
+deep
+defenseless
+defensive
+defiant
+deficient
+definite
+definitive
+delayed
+delectable
+delicious
+delightful
+delirious
+demanding
+dense
+dental
+dependable
+dependent
+descriptive
+deserted
+detailed
+determined
+devoted
+different
+difficult
+digital
+diligent
+dim
+dimpled
+dimwitted
+direct
+disastrous
+discrete
+disfigured
+disgusting
+disloyal
+dismal
+distant
+downright
+dreary
+dirty
+disguised
+dishonest
+dismal
+distant
+distinct
+distorted
+dizzy
+dopey
+doting
+double
+downright
+drab
+drafty
+dramatic
+dreary
+droopy
+dry
+dual
+dull
+dutiful
+each
+eager
+earnest
+early
+easy
+easy-going
+ecstatic
+edible
+educated
+elaborate
+elastic
+elated
+elderly
+electric
+elegant
+elementary
+elliptical
+embarrassed
+embellished
+eminent
+emotional
+empty
+enchanted
+enchanting
+energetic
+enlightened
+enormous
+enraged
+entire
+envious
+equal
+equatorial
+essential
+esteemed
+ethical
+euphoric
+even
+evergreen
+everlasting
+every
+evil
+exalted
+excellent
+exemplary
+exhausted
+excitable
+excited
+exciting
+exotic
+expensive
+experienced
+expert
+extraneous
+extroverted
+extra-large
+extra-small
+fabulous
+failing
+faint
+fair
+faithful
+fake
+false
+familiar
+famous
+fancy
+fantastic
+far
+faraway
+far-flung
+far-off
+fast
+fat
+fatal
+fatherly
+favorable
+favorite
+fearful
+fearless
+feisty
+feline
+female
+feminine
+few
+fickle
+filthy
+fine
+finished
+firm
+first
+firsthand
+fitting
+fixed
+flaky
+flamboyant
+flashy
+flat
+flawed
+flawless
+flickering
+flimsy
+flippant
+flowery
+fluffy
+fluid
+flustered
+focused
+fond
+foolhardy
+foolish
+forceful
+forked
+formal
+forsaken
+forthright
+fortunate
+fragrant
+frail
+frank
+frayed
+free
+French
+fresh
+frequent
+friendly
+frightened
+frightening
+frigid
+frilly
+frizzy
+frivolous
+front
+frosty
+frozen
+frugal
+fruitful
+full
+fumbling
+functional
+funny
+fussy
+fuzzy
+gargantuan
+gaseous
+general
+generous
+gentle
+genuine
+giant
+giddy
+gigantic
+gifted
+giving
+glamorous
+glaring
+glass
+gleaming
+gleeful
+glistening
+glittering
+gloomy
+glorious
+glossy
+glum
+golden
+good
+good-natured
+gorgeous
+graceful
+gracious
+grand
+grandiose
+granular
+grateful
+grave
+gray
+great
+greedy
+green
+gregarious
+grim
+grimy
+gripping
+grizzled
+gross
+grotesque
+grouchy
+grounded
+growing
+growling
+grown
+grubby
+gruesome
+grumpy
+guilty
+gullible
+gummy
+hairy
+half
+handmade
+handsome
+handy
+happy
+happy-go-lucky
+hard
+hard-to-find
+harmful
+harmless
+harmonious
+harsh
+hasty
+hateful
+haunting
+healthy
+heartfelt
+hearty
+heavenly
+heavy
+hefty
+helpful
+helpless
+hidden
+hideous
+high
+high-level
+hilarious
+hoarse
+hollow
+homely
+honest
+honorable
+honored
+hopeful
+horrible
+hospitable
+hot
+huge
+humble
+humiliating
+humming
+humongous
+hungry
+hurtful
+husky
+icky
+icy
+ideal
+idealistic
+identical
+idle
+idiotic
+idolized
+ignorant
+ill
+illegal
+ill-fated
+ill-informed
+illiterate
+illustrious
+imaginary
+imaginative
+immaculate
+immaterial
+immediate
+immense
+impassioned
+impeccable
+impartial
+imperfect
+imperturbable
+impish
+impolite
+important
+impossible
+impractical
+impressionable
+impressive
+improbable
+impure
+inborn
+incomparable
+incompatible
+incomplete
+inconsequential
+incredible
+indelible
+inexperienced
+indolent
+infamous
+infantile
+infatuated
+inferior
+infinite
+informal
+innocent
+insecure
+insidious
+insignificant
+insistent
+instructive
+insubstantial
+intelligent
+intent
+intentional
+interesting
+internal
+international
+intrepid
+ironclad
+irresponsible
+irritating
+itchy
+jaded
+jagged
+jam-packed
+jaunty
+jealous
+jittery
+joint
+jolly
+jovial
+joyful
+joyous
+jubilant
+judicious
+juicy
+jumbo
+junior
+jumpy
+juvenile
+kaleidoscopic
+keen
+key
+kind
+kindhearted
+kindly
+klutzy
+knobby
+knotty
+knowledgeable
+knowing
+known
+kooky
+kosher
+lame
+lanky
+large
+last
+lasting
+late
+lavish
+lawful
+lazy
+leading
+lean
+leafy
+left
+legal
+legitimate
+light
+lighthearted
+likable
+likely
+limited
+limp
+limping
+linear
+lined
+liquid
+little
+live
+lively
+livid
+loathsome
+lone
+lonely
+long
+long-term
+loose
+lopsided
+lost
+loud
+lovable
+lovely
+loving
+low
+loyal
+lucky
+lumbering
+luminous
+lumpy
+lustrous
+luxurious
+mad
+made-up
+magnificent
+majestic
+major
+male
+mammoth
+married
+marvelous
+masculine
+massive
+mature
+meager
+mealy
+mean
+measly
+meaty
+medical
+mediocre
+medium
+meek
+mellow
+melodic
+memorable
+menacing
+merry
+messy
+metallic
+mild
+milky
+mindless
+miniature
+minor
+minty
+miserable
+miserly
+misguided
+misty
+mixed
+modern
+modest
+moist
+monstrous
+monthly
+monumental
+moral
+mortified
+motherly
+motionless
+mountainous
+muddy
+muffled
+multicolored
+mundane
+murky
+mushy
+musty
+muted
+mysterious
+naive
+narrow
+nasty
+natural
+naughty
+nautical
+near
+neat
+necessary
+needy
+negative
+neglected
+negligible
+neighboring
+nervous
+new
+next
+nice
+nifty
+nimble
+nippy
+nocturnal
+noisy
+nonstop
+normal
+notable
+noted
+noteworthy
+novel
+noxious
+numb
+nutritious
+nutty
+obedient
+obese
+oblong
+oily
+oblong
+obvious
+occasional
+odd
+oddball
+offbeat
+offensive
+official
+old
+old-fashioned
+only
+open
+optimal
+optimistic
+opulent
+orange
+orderly
+organic
+ornate
+ornery
+ordinary
+original
+other
+our
+outlying
+outgoing
+outlandish
+outrageous
+outstanding
+oval
+overcooked
+overdue
+overjoyed
+overlooked
+palatable
+pale
+paltry
+parallel
+parched
+partial
+passionate
+past
+pastel
+peaceful
+peppery
+perfect
+perfumed
+periodic
+perky
+personal
+pertinent
+pesky
+pessimistic
+petty
+phony
+physical
+piercing
+pink
+pitiful
+plain
+plaintive
+plastic
+playful
+pleasant
+pleased
+pleasing
+plump
+plush
+polished
+polite
+political
+pointed
+pointless
+poised
+poor
+popular
+portly
+posh
+positive
+possible
+potable
+powerful
+powerless
+practical
+precious
+present
+prestigious
+pretty
+precious
+previous
+pricey
+prickly
+primary
+prime
+pristine
+private
+prize
+probable
+productive
+profitable
+profuse
+proper
+proud
+prudent
+punctual
+pungent
+puny
+pure
+purple
+pushy
+putrid
+puzzled
+puzzling
+quaint
+qualified
+quarrelsome
+quarterly
+queasy
+querulous
+questionable
+quick
+quick-witted
+quiet
+quintessential
+quirky
+quixotic
+quizzical
+radiant
+ragged
+rapid
+rare
+rash
+raw
+recent
+reckless
+rectangular
+ready
+real
+realistic
+reasonable
+red
+reflecting
+regal
+regular
+reliable
+relieved
+remarkable
+remorseful
+remote
+repentant
+required
+respectful
+responsible
+repulsive
+revolving
+rewarding
+rich
+rigid
+right
+ringed
+ripe
+roasted
+robust
+rosy
+rotating
+rotten
+rough
+round
+rowdy
+royal
+rubbery
+rundown
+ruddy
+rude
+runny
+rural
+rusty
+sad
+safe
+salty
+same
+sandy
+sane
+sarcastic
+sardonic
+satisfied
+scaly
+scarce
+scared
+scary
+scented
+scholarly
+scientific
+scornful
+scratchy
+scrawny
+second
+secondary
+second-hand
+secret
+self-assured
+self-reliant
+selfish
+sentimental
+separate
+serene
+serious
+serpentine
+several
+severe
+shabby
+shadowy
+shady
+shallow
+shameful
+shameless
+sharp
+shimmering
+shiny
+shocked
+shocking
+shoddy
+short
+short-term
+showy
+shrill
+shy
+sick
+silent
+silky
+silly
+silver
+similar
+simple
+simplistic
+sinful
+single
+sizzling
+skeletal
+skinny
+sleepy
+slight
+slim
+slimy
+slippery
+slow
+slushy
+small
+smart
+smoggy
+smooth
+smug
+snappy
+snarling
+sneaky
+sniveling
+snoopy
+sociable
+soft
+soggy
+solid
+somber
+some
+spherical
+sophisticated
+sore
+sorrowful
+soulful
+soupy
+sour
+Spanish
+sparkling
+sparse
+specific
+spectacular
+speedy
+spicy
+spiffy
+spirited
+spiteful
+splendid
+spotless
+spotted
+spry
+square
+squeaky
+squiggly
+stable
+staid
+stained
+stale
+standard
+starchy
+stark
+starry
+steep
+sticky
+stiff
+stimulating
+stingy
+stormy
+straight
+strange
+steel
+strict
+strident
+striking
+striped
+strong
+studious
+stunning
+stupendous
+stupid
+sturdy
+stylish
+subdued
+submissive
+substantial
+subtle
+suburban
+sudden
+sugary
+sunny
+super
+superb
+superficial
+superior
+supportive
+sure-footed
+surprised
+suspicious
+svelte
+sweaty
+sweet
+sweltering
+swift
+sympathetic
+tall
+talkative
+tame
+tan
+tangible
+tart
+tasty
+tattered
+taut
+tedious
+teeming
+tempting
+tender
+tense
+tepid
+terrible
+terrific
+testy
+thankful
+that
+these
+thick
+thin
+third
+thirsty
+this
+thorough
+thorny
+those
+thoughtful
+threadbare
+thrifty
+thunderous
+tidy
+tight
+timely
+tinted
+tiny
+tired
+torn
+total
+tough
+traumatic
+treasured
+tremendous
+tragic
+trained
+tremendous
+triangular
+tricky
+trifling
+trim
+trivial
+troubled
+true
+trusting
+trustworthy
+trusty
+truthful
+tubby
+turbulent
+twin
+ugly
+ultimate
+unacceptable
+unaware
+uncomfortable
+uncommon
+unconscious
+understated
+unequaled
+uneven
+unfinished
+unfit
+unfolded
+unfortunate
+unhappy
+unhealthy
+uniform
+unimportant
+unique
+united
+unkempt
+unknown
+unlawful
+unlined
+unlucky
+unnatural
+unpleasant
+unrealistic
+unripe
+unruly
+unselfish
+unsightly
+unsteady
+unsung
+untidy
+untimely
+untried
+untrue
+unused
+unusual
+unwelcome
+unwieldy
+unwilling
+unwitting
+unwritten
+upbeat
+upright
+upset
+urban
+usable
+used
+useful
+useless
+utilized
+utter
+vacant
+vague
+vain
+valid
+valuable
+vapid
+variable
+vast
+velvety
+venerated
+vengeful
+verifiable
+vibrant
+vicious
+victorious
+vigilant
+vigorous
+villainous
+violet
+violent
+virtual
+virtuous
+visible
+vital
+vivacious
+vivid
+voluminous
+wan
+warlike
+warm
+warmhearted
+warped
+wary
+wasteful
+watchful
+waterlogged
+watery
+wavy
+wealthy
+weak
+weary
+webbed
+wee
+weekly
+weepy
+weighty
+weird
+welcome
+well-documented
+well-groomed
+well-informed
+well-lit
+well-made
+well-off
+well-to-do
+well-worn
+wet
+which
+whimsical
+whirlwind
+whispered
+white
+whole
+whopping
+wicked
+wide
+wide-eyed
+wiggly
+wild
+willing
+wilted
+winding
+windy
+winged
+wiry
+wise
+witty
+wobbly
+woeful
+wonderful
+wooden
+woozy
+wordy
+worldly
+worn
+worried
+worrisome
+worse
+worst
+worthless
+worthwhile
+worthy
+wrathful
+wretched
+writhing
+wrong
+wry
+yawning
+yearly
+yellow
+yellowish
+young
+youthful
+yummy
+zany
+zealous
+zesty
+zigzag
+
+
+================================================
+FILE: packages/backend/code-generation/code-generator.js
+================================================
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+class CodeGenerator {
+	constructor() {
+		this._adjectives = this._readFile("./adjectives.txt");
+		this._foods = this._readFile("./foods.txt");
+	}
+
+	// Reads a file and returns a list of lines
+	_readFile(fileName) {
+		const text = fs.readFileSync(path.join(__dirname, fileName));
+		return text.toString().replace(/\r\n/g, "\n").split("\n");
+	}
+
+	generateCode() {
+		const adjective = this._adjectives[Math.floor(Math.random() * this._adjectives.length)];
+		const food = this._foods[Math.floor(Math.random() * this._foods.length)];
+		return `${adjective}-${food}`;
+	}
+}
+
+const codeGenerator = new CodeGenerator();
+export default codeGenerator;
+
+
+
+================================================
+FILE: packages/backend/code-generation/foods.txt
+================================================
+abiyuch
+acerola
+acorn
+agave
+agents
+agutuk
+alfalfa
+amaranth
+animal
+apache
+apple
+apples
+applesauce
+apricot
+apricots
+arrowhead
+arrowroot
+artichokes
+artificial
+arugula
+ascidians
+asparagus
+avocados
+baby
+babyfood
+bacon
+bagel
+bagels
+baking
+balls
+balsam-pear
+bamboo
+bananas
+bar
+barbecue
+barley
+bars
+basil
+bean
+beans
+bear
+beef
+beerwurst
+beet
+beets
+berry
+besan
+beverage
+beverages
+biscuits
+bison
+bits
+bitter
+blackberries
+blackberry
+blackeyes
+blend
+blueberries
+blueberry
+bockwurst
+bologna
+borage
+bowl
+boysenberries
+bran
+brand
+bratwurst
+braunschweiger
+bread
+breadfruit
+breakfast
+breast
+broadbeans
+broccoli
+broth
+brotwurst
+brussels
+buckwheat
+buffalo
+bulgur
+buns
+burdock
+burgers
+burrito
+butter
+butterbur
+butters
+cabbage
+cake
+candied
+candies
+capers
+carambola
+carbonated
+cardoon
+caribou
+carissa
+carne
+carob
+carob-flavor
+carrot
+carrots
+cassava
+catsup
+cattail
+cauliflower
+celeriac
+celery
+celtuce
+cereal
+cereals
+chard
+chayote
+cheese
+cheesecake
+cheesefurter
+cherimoya
+cherries
+chewing
+chicken
+chickpea
+chickpeas
+chicory
+chilchen
+child
+chili
+chips
+chiton
+chives
+chocolate
+chocolate-flavor
+chocolate-flavored
+chokecherries
+chorizo
+chrysanthemum
+cilantro
+cinnamon
+citronella
+citrus
+clam
+clementines
+cloudberries
+cockles
+cocktail
+cocoa
+coffee
+coffeecake
+collards
+commercially
+concentrate
+cone
+cones
+confectionery
+containing
+cookie
+cookies
+coriander
+corn
+corned
+cornmeal
+cornsalad
+cornstarch
+cotija
+couscous
+cowpeas
+crabapples
+cracker
+crackers
+cranberries
+cranberry
+cranberry-apple
+cranberry-apricot
+cranberry-grape
+cranberry-orange
+cream
+creams
+creamy
+cress
+croissants
+croutons
+crumbs
+crust
+crustaceans
+cucumber
+currants
+custard-apple
+custards
+dairy
+dandelion
+danish
+dates
+deer
+dessert
+desserts
+diabetes
+dill
+dinner
+dip
+dishes
+dock
+dogs
+dough
+doughnuts
+dove
+dressing
+drink
+drippings
+drumstick
+dry
+duck
+dulce
+durian
+dutch
+ear
+edamame
+egg
+eggnog
+eggnog-flavor
+eggplant
+eggs
+elderberries
+elk
+emu
+endive
+energy
+entrees
+epazote
+eppaw
+extender
+extract
+falafel
+fast
+fat
+fava
+feijoa
+fennel
+fern
+ferns
+fiddlehead
+figs
+fillets
+fillings
+fireweed
+fish
+flakes
+flan
+flavored
+flour
+flours
+flower
+flowers
+fluid
+focaccia
+foie
+food
+foods
+formula
+formulated
+frankfurter
+franks
+frijoles
+frog
+from
+frostings
+frozen
+fruit
+fruit-flavored
+frybread
+frying
+fungi
+garbanzo
+garlic
+gelatin
+gelatins
+germ
+ginger
+gluten
+goat
+goose
+gooseberries
+gourd
+grain
+gram
+granola
+grape
+grapefruit
+grapes
+gras
+grass
+gravy
+green
+greens
+groats
+ground
+groundcherries
+grouse
+guacamole
+guanabana
+guava
+guavas
+guinea
+gum
+gums
+ham
+hazelnut
+hazelnuts
+headcheese
+hearts
+hen
+hibiscus
+hips
+hominy
+honey
+horned
+horseradish
+household
+huckleberries
+hummus
+hush
+hyacinth
+hyacinth-beans
+hydrogenated
+hydrolyzed
+ice
+imitation
+incaparina
+industrial
+isolate
+jackfruit
+jams
+java-plum
+jellies
+jellyfish
+jerusalem-artichokes
+jicama
+juice
+jujube
+jute
+kale
+kanpyo
+keikitos
+kielbasa
+kiwano
+kiwifruit
+knackwurst
+kohlrabi
+kumquats
+lamb
+lambs
+lambsquarters
+lard
+lasagna
+lean
+leavening
+leaves
+lebanon
+leche
+leeks
+legs
+lemon
+lemonade
+lemonade-flavor
+lemons
+lentils
+lettuce
+lima
+lime
+limeade
+limes
+link
+links
+lion
+litchis
+liver
+liverwurst
+loaf
+loganberries
+loin
+longans
+loquats
+lotus
+lulo
+lunch
+luncheon
+lupins
+luxury
+macaroni
+made
+malabar
+malt
+malted
+mammy-apple
+mango
+mangos
+mangosteen
+maraschino
+margarine
+margarine-like
+marmalade
+mashu
+mayonnaise
+meal
+meat
+meatballs
+meatloaf
+melon
+melons
+milk
+millet
+miso
+mixed
+mocha
+molasses
+mollusks
+moose
+mortadella
+mothbeans
+mother's
+mountain
+mouse
+muffin
+muffins
+mulberries
+mung
+mungo
+mush
+mushrooms
+mustard
+mutton
+nance
+naranjilla
+natto
+navajo
+nectar
+nectarines
+nettles
+new
+noodles
+nopales
+novelties
+nutritional
+nuts
+oat
+oats
+octopus
+oheloberries
+oil
+oil-butter
+okara
+okra
+olive
+olives
+onion
+onions
+oopah
+orange
+orange-flavor
+orange-grapefruit
+oranges
+ostrich
+oven-roasted
+palm
+pancakes
+papad
+papaya
+papayas
+parfait
+parmesan
+parsley
+parsnips
+passion-fruit
+pasta
+pastrami
+pastries
+pastry
+pate
+patties
+patty
+pea
+peach
+peaches
+peanut
+peanuts
+pear
+pears
+peas
+pectin
+peel
+people
+pepeao
+pepper
+peppered
+peppermint
+pepperoni
+peppers
+persimmons
+pheasant
+phyllo
+pickle
+pickles
+picnic
+pie
+pigeon
+pigeonpeas
+piki
+pimento
+pimiento
+pineapple
+pinon
+pitanga
+pizza
+plain
+plantains
+plums
+pockets
+pokeberry
+pomegranate
+pomegranates
+popcorn
+pork
+potato
+potatoes
+potsticker
+poultry
+powder
+prairie
+prepared
+preserves
+pretzels
+prickly
+product
+products
+protein
+prune
+prunes
+pudding
+puddings
+puff
+puffs
+pulled
+pulp
+pummelo
+pumpkin
+punch
+punch-flavor
+puppies
+puree
+purslane
+quail
+quarters
+queso
+quinces
+quinoa
+raab
+radicchio
+radish
+radishes
+raisins
+rambutan
+raspberries
+ravioli
+ready-to-drink
+ready-to-eat
+red
+reddi
+reduced
+refried
+relish
+rennin
+replacement
+restaurant
+rhubarb
+rice
+rings
+roast
+rojos
+roll
+rolls
+root
+roots
+rose
+rose-apples
+roselle
+rosemary
+rowal
+ruffed
+rutabagas
+rye
+salad
+salami
+salmon
+salmonberries
+salsify
+salt
+sandwich
+sapodilla
+sapote
+sauce
+sauerkraut
+sausage
+school
+scrapple
+sea
+seal
+seasoning
+seaweed
+seeds
+semolina
+sesbania
+shake
+shakes
+shallots
+shell
+shells
+sherbet
+shoots
+shortening
+shoyu
+side
+smelt
+smoked
+smoothie
+snack
+snacks
+sorghum
+souffle
+soup
+sourdock
+soursop
+soy
+soybean
+soybeans
+soyburgers
+soymilk
+spaghetti
+spanish
+spearmint
+spelt
+spices
+spinach
+split
+spread
+sprouts
+squab
+squash
+squirrel
+steelhead
+stew
+stew/soup
+sticks
+stinging
+strawberries
+strawberry-flavor
+strudel
+stuffing
+substitute
+substitutes
+succotash
+sugar
+sugar-apples
+sugars
+supplement
+swamp
+sweet
+sweetener
+sweeteners
+swisswurst
+syrup
+syrups
+taco
+tamales
+tamari
+tamarind
+tamarinds
+tangerine
+tangerines
+tannier
+tapioca
+taquitos
+taro
+tart
+tea
+teff
+tempeh
+tenders
+tennis
+thigh
+thuringer
+thyme
+toast
+toaster
+toddler
+tofu
+tomatillos
+tomato
+tomatoes
+topping
+toppings
+tortellini
+tortilla
+tortillas
+tostada
+triticale
+trout
+tuber
+tunicate
+tunughnak
+turkey
+turnip
+turnips
+turnover
+turtle
+twists
+vanilla
+veal
+vegetable
+vegetable-oil
+vegetables
+vegetarian
+veggie
+venison
+vermicelli
+vinegar
+vinespinach
+vital
+volteados
+waffle
+waffles
+walrus
+wasabi
+water
+waterchestnuts
+watercress
+watermelon
+waxgourd
+weed
+wheat
+whey
+whiskey
+whole
+wild
+willow
+wine
+winged
+wocas
+wonton
+wrappers
+yachtwurst
+yam
+yambean
+yardlong
+yautia
+yeast
+yellow
+yogurt
+yogurts
+zealand
+zwieback
+
+
+================================================
+FILE: packages/backend/services/tenor.js
+================================================
+import process from "process";
+
+export async function getTenorGIF(query) {
+	const url = `https://tenor.googleapis.com/v2/search?q=${query}&key=${process.env.TENOR_API_KEY}&limit=1`;
+	const response = await fetch(url);
+	const data = await response.json();
+	return data.results[0].media_formats.gif.url;
+}
+
+
+
+================================================
+FILE: packages/frontend/README.md
+================================================
+# Getting Started with Create React App
+
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## Available Scripts
+
+In the project directory, you can run:
+
+### `npm start`
+
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+
+The page will reload when you make changes.\
+You may also see any lint errors in the console.
+
+### `npm test`
+
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+
+### `npm run build`
+
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
+
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
+
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+
+### `npm run eject`
+
+**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+
+If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+
+You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+
+## Learn More
+
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+
+To learn React, check out the [React documentation](https://reactjs.org/).
+
+### Code Splitting
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+
+### Analyzing the Bundle Size
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+
+### Making a Progressive Web App
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+
+### Advanced Configuration
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+
+### Deployment
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+
+### `npm run build` fails to minify
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+
+
+================================================
+FILE: packages/frontend/netlify.toml
+================================================
+
+
+
+================================================
+FILE: packages/frontend/package.json
+================================================
+{
+	"name": "frontend",
+	"version": "0.1.0",
+	"private": true,
+	"dependencies": {
+		"@testing-library/jest-dom": "^5.17.0",
+		"@testing-library/react": "^13.4.0",
+		"@testing-library/user-event": "^13.5.0",
+		"js-cookie": "^3.0.5",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"react-hot-toast": "^2.4.1",
+		"react-router-dom": "^6.22.2",
+		"react-scripts": "^5.0.1",
+		"react-timer-hook": "^3.0.7",
+		"socket.io-client": "^4.7.4",
+		"web-vitals": "^2.1.4"
+	},
+	"scripts": {
+		"start": "react-scripts start",
+		"build": "react-scripts build",
+		"test": "react-scripts test --passWithNoTests",
+		"eject": "react-scripts eject"
+	},
+	"eslintConfig": {
+		"extends": [
+			"react-app",
+			"react-app/jest"
+		]
+	},
+	"browserslist": {
+		"production": [
+			">0.2%",
+			"not dead",
+			"not op_mini all"
+		],
+		"development": [
+			"last 1 chrome version",
+			"last 1 firefox version",
+			"last 1 safari version"
+		]
+	},
+	"devDependencies": {
+		"@babel/plugin-transform-optional-chaining": "^7.23.4",
+		"@babel/plugin-transform-private-methods": "^7.23.3",
+		"tailwindcss": "^3.4.1"
+	}
+}
+
+
+
+================================================
+FILE: packages/frontend/tailwind.config.js
+================================================
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+	content: ["./src/**/*.{js,jsx,ts,tsx}"],
+	theme: {
+		extend: {
+			colors: {
+				primary: "#FC8800",
+				secondary: "#D9D9D9",
+				accent_red: "#FD4C3C",
+				accent_yellow: "#FCB000",
+				gray_text: "#696767",
+				placeholder_text: "#A0A0A0",
+				black: "#000000",
+			},
+			borderRadius: {
+				normal: "20px",
+			},
+			spacing: {
+				normal: "60px",
+			},
+			fontSize: {
+				normal: "30px",
+				medium: "40px",
+				big: "50px",
+			},
+			width: {
+				"95%": "95%",
+			},
+		},
+	},
+	plugins: [],
+};
+
+
+
+================================================
+FILE: packages/frontend/.gitignore
+================================================
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+
+================================================
+FILE: packages/frontend/public/_redirects
+================================================
+/* /index.html 200
+
+
+================================================
+FILE: packages/frontend/public/index.html
+================================================
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#000000" />
+		<meta name="description" content="Web site created using create-react-app" />
+		<link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+		<!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+		<link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+		<!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+		<title>React App</title>
+	</head>
+	<body>
+		<noscript>You need to enable JavaScript to run this app.</noscript>
+		<div id="root"></div>
+		<!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    --></body>
+</html>
+
+
+
+================================================
+FILE: packages/frontend/public/manifest.json
+================================================
+{
+	"short_name": "React App",
+	"name": "Create React App Sample",
+	"icons": [
+		{
+			"src": "favicon.ico",
+			"sizes": "64x64 32x32 24x24 16x16",
+			"type": "image/x-icon"
+		},
+		{
+			"src": "logo192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "logo512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		}
+	],
+	"start_url": ".",
+	"display": "standalone",
+	"theme_color": "#000000",
+	"background_color": "#ffffff"
+}
+
+
+
+================================================
+FILE: packages/frontend/public/robots.txt
+================================================
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow:
+
+
+
+================================================
+FILE: packages/frontend/src/App.js
+================================================
+import Header from "./components/Header";
+import { Route, Routes } from "react-router-dom";
+import TutorialPage from "./pages/TutorialPage";
+import WelcomePage from "./pages/WelcomePage";
+import NameFormPage from "./pages/NameFormPage";
+import MainFlockPage from "./pages/MainFlockPage";
+import LoadingPage from "./pages/LoadingPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import { Toaster } from "react-hot-toast";
+import { CoopProvider } from "./context/coop-context";
+import { AuthProvider } from "./context/auth-context";
+
+function App() {
+	return (
+		<AuthProvider>
+			<CoopProvider>
+				<div className="flex flex-col space-y-normal w-full items-center">
+					<Header />
+					<Routes>
+						<Route exact path="/" element={<TutorialPage />} />
+						<Route exact path="/welcome" element={<WelcomePage />} />
+						<Route exact path="/login" element={<LoginPage />} />
+						<Route exact path="/register" element={<RegisterPage />} />
+						<Route exact path="/flock/:coopName" element={<MainFlockPage />} />
+						<Route path="/flock/:coopName/loading/" element={<LoadingPage />} />
+						<Route path="/flock/:coopName/join/" element={<NameFormPage />} />
+					</Routes>
+					<Toaster />
+				</div>
+			</CoopProvider>
+		</AuthProvider>
+	);
+}
+
+export default App;
+
+
+
+================================================
+FILE: packages/frontend/src/index.css
+================================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+================================================
+FILE: packages/frontend/src/index.js
+================================================
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
+import App from "./App";
+import { BrowserRouter } from "react-router-dom";
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+console.log(root);
+root.render(
+	<BrowserRouter>
+		<App />
+	</BrowserRouter>
+);
+
+
+
+================================================
+FILE: packages/frontend/src/components/Header.js
+================================================
+import React from "react";
+import { ReactComponent as Logo } from "../images/chicken_logo.svg";
+
+export default function Header() {
+	return (
+		<div className="flex flex-row bg-primary justify-center p-4 w-screen">
+			<div className="flex rounded-full bg-white items-center justify-center w-[162px] h-[162px]">
+				<Logo />
+			</div>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/components/ProtectedPage.js
+================================================
+import { useContext, useEffect } from "react";
+import AuthContext from "../context/auth-context";
+import { useNavigate } from "react-router-dom";
+
+export default function ProtectedPage(props) {
+	const { isLoggedIn, token } = useContext(AuthContext);
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (!isLoggedIn) {
+			navigate("/login?redirect=" + window.location.pathname);
+		}
+	}, [isLoggedIn, token]);
+
+	return props.children;
+}
+
+
+
+================================================
+FILE: packages/frontend/src/components/Table.js
+================================================
+function TableBody(props) {
+	const rows = props.rows.map((row, index) => {
+		return (
+			<tr key={index}>
+				<td style={{ textAlign: "center", fontSize: "24px" }}>{row}</td>
+			</tr>
+		);
+	});
+	return <tbody>{rows}</tbody>;
+}
+
+function Table(props) {
+	return (
+		<table>
+			<TableBody rows={props.rows} />
+		</table>
+	);
+}
+
+export default Table;
+
+
+
+================================================
+FILE: packages/frontend/src/components/Input/Buttons.js
+================================================
+import React from "react";
+
+export function FullWidthButton(props) {
+	return (
+		<button
+			onClick={props.onClick}
+			className="w-full bg-primary text-white p-4 rounded-normal text-normal"
+		>
+			{props.children}
+		</button>
+	);
+}
+
+export function HalfWidthButton(props) {
+	return (
+		<button
+			onClick={props.onClick}
+			className="w-[45%] bg-primary text-white p-4 rounded-normal text-normal"
+		>
+			{props.buttonText}
+		</button>
+	);
+}
+
+export function SmallButton(props) {
+	return (
+		<button
+			onClick={props.onClick}
+			className="w-[20%] bg-primary text-white p-4 rounded-normal text-normal mx-auto"
+		>
+			{props.buttonText}
+		</button>
+	);
+}
+
+/**
+ * right-aligned button with white text
+ * @param {string} props.buttonText - Text for the button
+ * @param {function} props.onClick - Function to be called when the button is clicked. The current value of the textbox will be passed as an argument
+ */
+export function YesButton(props) {
+	return (
+		<div className="flex justify-end w-full h-full">
+			<button
+				onClick={(input) => props.onClick(input)}
+				className="bg-accent_red text-white p-4 rounded-normal text-medium w-95%"
+			>
+				{props.buttonText}
+			</button>
+		</div>
+	);
+}
+
+/**
+ * left-aligned button with white text
+ * @param {string} props.buttonText - Text for the button
+ * @param {function} props.onClick - Function to be called when the button is clicked. The current value of the textbox will be passed as an argument
+ */
+export function NoButton(props) {
+	return (
+		<div className="flex justify-start w-full h-full">
+			<button
+				onClick={(input) => props.onClick(input)}
+				className="bg-accent_yellow text-white p-4 rounded-normal text-medium w-95%"
+			>
+				{props.buttonText}
+			</button>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/components/Input/Input.js
+================================================
+import React from "react";
+
+export function Input(props) {
+	return (
+		<div className="flex flex-col w-full">
+			<span className="text-sm font-medium text-gray-900 mb-2">{props.children}</span>
+			<input
+				className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full p-5"
+				placeholder={props.placeholder}
+				onChange={props.onChange}
+				type={props.type}
+				required={props.required}
+			/>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/components/Input/Text.js
+================================================
+import React from "react";
+
+/**
+ * Full width centered text box with secondary background color and gray_text text color
+ */
+export function FullWidthText(props) {
+	return (
+		<div
+			name={props.name}
+			className="flex items-center justify-center w-full bg-secondary text-gray_text p-4 rounded-normal text-normal"
+		>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * Full width left-aligned text box with secondary background color and gray_text text color
+ */
+export function LeftAlignText(props) {
+	return (
+		<div className="flex items-center justify-start w-full bg-secondary text-gray_text p-12 mt-0 rounded-normal text-normal">
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * Centered black text with big font
+ */
+export function BigText(props) {
+	return (
+		<div className="flex items-center justify-center text-black text-big font-bold">
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * Combined textbox for the tutorial page
+ */
+export function CombinedText(props) {
+	return (
+		<div className="items-center w-full bg-secondary text-gray_text rounded-normal">
+			<div className="flex justify-center">
+				<h2 className="p-4 pt-8 text-medium font-bold">{props.title}</h2>
+			</div>
+			<div className="justify-start pt-0 pl-24 pr-12 pb-12 text-normal">{props.children}</div>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/components/Input/TextButtonInput.js
+================================================
+import React, { useState } from "react";
+
+/**
+ * Full width textbox along with a submission button on the right
+ * @param {string} props.placeholder - Placeholder text for the textbox
+ * @param {string} props.buttonText - Text for the button
+ * @param {string} props.value - Initial value of the textbox
+ * @param {function} props.onClick - Function to be called when the button is clicked. The current value of the textbox will be passed as an argument
+ * @param {boolean} props.textDisabled - Whether the textbox should be disabled (default: false)
+ */
+export default function TextButtonInput(props) {
+	const [input, setInput] = useState(props.value || "");
+
+	return (
+		<div className="flex flex-row rounded-normal bg-gray-200 w-full text-normal">
+			<input
+				type="text"
+				placeholder={props.placeholder}
+				value={input}
+				onChange={(e) => setInput(e.target.value)}
+				className="px-3 py-2 w-full bg-gray-200 rounded-normal disabled:text-gray-500"
+				disabled={props.textDisabled || false}
+			/>
+			<button
+				onClick={() => props.onClick(input)}
+				className="bg-primary text-white p-4 rounded-normal w-1/6"
+			>
+				{props.buttonText}
+			</button>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/context/auth-context.js
+================================================
+import React, { createContext, useState, useEffect } from "react";
+import Cookies from "js-cookie";
+
+const AuthContext = createContext({
+	token: null,
+	isLoggedIn: false,
+	login: async (email, password) => {},
+	logout: () => {},
+});
+
+export const AuthProvider = ({ children }) => {
+	const [token, setToken] = useState(Cookies.get("token") || null);
+	const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+	const checkToken = async () => {
+		try {
+			const checkResp = await fetch(`${process.env.REACT_APP_API_URL}/auth/check`, {
+				method: "GET",
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+			if (checkResp.status === 200) {
+				setIsLoggedIn(true);
+			} else {
+				setIsLoggedIn(false);
+			}
+		} catch (e) {
+			setIsLoggedIn(false);
+		}
+	};
+
+	const login = async (email, pass) => {
+		try {
+			const loginResp = await fetch(`${process.env.REACT_APP_API_URL}/auth/login`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ email, pass }),
+			});
+			if (loginResp.status === 200) {
+				const { token } = await loginResp.json();
+				Cookies.set("token", token);
+				setToken(token);
+				setIsLoggedIn(true);
+				return true;
+			}
+			return false;
+		} catch (e) {
+			return false;
+		}
+	};
+
+	const logout = () => {
+		Cookies.remove("token");
+		setToken(null);
+	};
+
+	useEffect(() => {
+		if (token) {
+			checkToken();
+		}
+	});
+
+	return (
+		<AuthContext.Provider value={{ token, isLoggedIn, login, logout }}>
+			{children}
+		</AuthContext.Provider>
+	);
+};
+
+export default AuthContext;
+
+
+
+================================================
+FILE: packages/frontend/src/context/coop-context.js
+================================================
+import React, { createContext, useEffect, useState } from "react";
+import { io } from "socket.io-client";
+
+const CoopContext = createContext({
+	lastMessage: null,
+	messages: [],
+	connectToFlock: (flockId) => {},
+});
+
+export const CoopProvider = ({ children }) => {
+	const [lastMessage, setLastMessage] = useState(null);
+	const [messages, setMessages] = useState([]);
+	const [socket, setSocket] = useState(null);
+
+	const connectToFlock = (flockId) => {
+		const newSocket = io(`${process.env.REACT_APP_API_URL}`);
+		newSocket.emit("join-flock", flockId);
+		setSocket(newSocket);
+	};
+
+	useEffect(() => {
+		if (socket) {
+			socket.on("message", (message) => {
+				console.log("Received message", message);
+				setLastMessage(message);
+				setMessages((prevMessages) => [...prevMessages, message]);
+			});
+		}
+	}, [socket]);
+
+	return (
+		<CoopContext.Provider value={{ lastMessage, messages, connectToFlock }}>
+			{children}
+		</CoopContext.Provider>
+	);
+};
+
+export default CoopContext;
+
+
+
+
+================================================
+FILE: packages/frontend/src/pages/GroupListPage.js
+================================================
+import React, { useContext, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { FullWidthText } from "../components/Input/Text";
+import { SmallButton } from "../components/Input/Buttons";
+import { BigText } from "../components/Input/Text";
+import TextButtonInput from "../components/Input/TextButtonInput";
+import toast from "react-hot-toast";
+import CoopContext from "../context/coop-context";
+import Table from "../components/Table";
+
+export default function GroupListPage(props) {
+	const params = useParams();
+	const coopContext = useContext(CoopContext);
+
+	function copyToClipboardAndNotify(input) {
+		navigator.clipboard.writeText(input);
+		toast.success("Copied to clipboard!", {
+			position: "bottom-right",
+		});
+	}
+
+	useEffect(() => {
+		coopContext.connectToFlock(params.coopName);
+	}, [params.coopName]);
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthText>Coop Name: {params.coopName}</FullWidthText>
+			<TextButtonInput
+				value={`${window.location.href}/join/`}
+				buttonText="copy invite link"
+				onClick={copyToClipboardAndNotify}
+				textDisabled={true}
+			/>
+			<BigText>My Flock</BigText>
+			<Table
+				rows={props.flock?.chicks ? props.flock.chicks.map((chick) => chick.name) : []}
+			/>
+			<SmallButton buttonText="let's go -->" onClick={props.nextStep} />
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/LoadingPage.js
+================================================
+import React, { useState, useEffect } from "react";
+import { FullWidthText } from "../components/Input/Text";
+
+export default function LoadingPage() {
+	const [text, setText] = useState("The chickens are still quarrelling...");
+
+	useEffect(() => {
+		const texts = [
+			"The chickens are still quarrelling...",
+			"Preparing to fly the coop...",
+			"Feathers getting into formation...",
+			"Almost ready to wing it...",
+		];
+
+		let index = 0;
+		const intervalId = setInterval(() => {
+			index = index + 1 === texts.length ? 0 : index + 1;
+			setText(texts[index]);
+		}, 3000); // Change text every 3 seconds
+
+		// Cleanup interval on unmount
+		return () => {
+			clearInterval(intervalId);
+		};
+	}, []); // Empty dependency array means this effect runs once on mount and cleanup on unmount
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthText>{text}</FullWidthText>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/LoginPage.js
+================================================
+import React, { useContext, useState } from "react";
+import { FullWidthButton } from "../components/Input/Buttons";
+import { Input } from "../components/Input/Input";
+import { useNavigate } from "react-router-dom";
+import AuthContext from "../context/auth-context";
+import toast from "react-hot-toast";
+
+export default function LoginPage() {
+	const navigate = useNavigate();
+	const auth = useContext(AuthContext);
+	const [emailValue, setEmail] = useState("");
+	const [passValue, setPassword] = useState("");
+	const redirectPath = new URLSearchParams(window.location.search).get("redirect") || "/welcome";
+
+	const handleChangeEmail = (event) => {
+		setEmail(event.target.value);
+	};
+
+	const handleChangePass = (event) => {
+		setPassword(event.target.value);
+	};
+
+	async function handleLogin(event) {
+		event.preventDefault();
+		const res = await auth.login(emailValue, passValue);
+		if (res) {
+			navigate(redirectPath);
+		} else {
+			toast.error("Login failed. Please try again.");
+		}
+	}
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<form className="flex flex-col space-y-10 justify-center items-center">
+				<Input placeholder="user@chickentinder.com" onChange={handleChangeEmail}>
+					Email
+				</Input>
+				<div className="flex flex-col w-full">
+					<Input onChange={handleChangePass}>Password</Input>
+					<span className="text-sm">
+						No account?{" "}
+						<a href="/register" className="text-blue-500 hover:underline">
+							Register here
+						</a>
+					</span>
+				</div>
+				<FullWidthButton onClick={handleLogin}>Login</FullWidthButton>
+			</form>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/MainFlockPage.js
+================================================
+import React, { useContext, useEffect, useState } from "react";
+import GroupListPage from "./GroupListPage";
+import NominationPage from "./NominationPage";
+import VotingPage from "./VotingPage";
+import WinnerPage from "./WinnerPage";
+import LoadingPage from "./LoadingPage";
+import { useParams, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import AuthContext from "../context/auth-context";
+import CoopContext from "../context/coop-context";
+
+export default function MainFlockPage() {
+	const params = useParams();
+	const navigate = useNavigate();
+	const [flock, setFlock] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const auth = useContext(AuthContext);
+	const coop = useContext(CoopContext);
+
+	async function loadFlockState() {
+		try {
+			setLoading(true);
+			const resp = await fetch(`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}`);
+			if (resp.status >= 200 && resp.status < 300) {
+				const jsn = await resp.json();
+				setFlock(jsn);
+			} else {
+				toast.error("Failed to load the flock info");
+			}
+			setLoading(false);
+		} catch (e) {
+			console.error(e);
+			toast.error("Failed to load the flock info");
+			navigate("/welcome");
+			setLoading(false);
+		}
+	}
+
+	async function nextStep(e, jump = null) {
+		e.preventDefault();
+		try {
+			const body = jump ? { step: jump } : {};
+			const resp = await fetch(
+				`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/step`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${auth.token}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(body),
+				}
+			);
+			if (resp.status < 300 && resp.status >= 200) {
+				const jsn = await resp.json();
+				setFlock(jsn);
+			} else {
+				toast.error("Can't go to next step - are you the mother hen?");
+			}
+		} catch (e) {
+			toast.error("Error while attempting to step through pages");
+		}
+	}
+
+	useEffect(() => {
+		loadFlockState();
+	}, []);
+
+	useEffect(() => {
+		if (!localStorage.getItem("chickName")) {
+			navigate(`/flock/${params.coopName}/join`);
+		}
+	}, []);
+
+	useEffect(() => {
+		if (coop.lastMessage && coop.lastMessage.type === "flock-updated") {
+			setFlock(coop.lastMessage.newState);
+		}
+	}, [coop.lastMessage]);
+
+	return (
+		<>
+			{loading ? (
+				<LoadingPage />
+			) : (
+				(() => {
+					if (flock.step === 1) {
+						return <GroupListPage nextStep={nextStep} flock={flock} />;
+					} else if (flock.step === 2) {
+						return <NominationPage nextStep={nextStep} flock={flock} />;
+					} else if (flock.step === 3) {
+						return <VotingPage loadFlockState={loadFlockState} flock={flock} />;
+					} else if (flock.step === 4) {
+						return <WinnerPage nextStep={nextStep} flock={flock} />;
+					} else {
+						return <div>Something went horribly wrong...</div>;
+					}
+				})()
+			)}
+		</>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/NameFormPage.js
+================================================
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FullWidthText } from "../components/Input/Text";
+import TextButtonInput from "../components/Input/TextButtonInput";
+import LoadingPage from "./LoadingPage";
+import { toast } from "react-hot-toast";
+
+export default function NameFormPage(props) {
+	const navigate = useNavigate();
+	const params = useParams();
+
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		async function checkChickAndFlock() {
+			const chickId = localStorage.getItem("chickId");
+			if (chickId) {
+				const chickResponse = await fetch(
+					`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/chicks/${chickId}`
+				);
+				console.log(chickResponse.status);
+				if (chickResponse.status === 200) {
+					localStorage.setItem("chickName", chickResponse.name);
+					navigate(`/flock/${params.coopName}/lobby/`);
+					return;
+				}
+			}
+
+			localStorage.clear();
+
+			const flockResponse = await fetch(
+				`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/basket`
+			);
+			if (flockResponse.status === 200) {
+				setLoading(false);
+			} else {
+				navigate("/welcome");
+			}
+		}
+
+		checkChickAndFlock();
+	}, [navigate, params.coopName]);
+
+	async function addChick(name) {
+		const result = await fetch(
+			process.env.REACT_APP_API_URL + `/flocks/${params.coopName}/chicks`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ name: name }),
+			}
+		);
+
+		if (result.status === 400) {
+			toast.error("Chick already exists", {
+				position: "bottom-right",
+			});
+			return null;
+		} else {
+			return result.json();
+		}
+	}
+
+	async function onClick(chickName) {
+		const chick = await addChick(chickName);
+		if (chick) {
+			localStorage.setItem("chickName", chick.name);
+			localStorage.setItem("chickId", chick._id);
+			navigate(`/flock/${params.coopName}`);
+		}
+	}
+
+	return (
+		<>
+			{loading ? (
+				<LoadingPage />
+			) : (
+				<div className="flex flex-col space-y-normal justify-center w-5/6">
+					<FullWidthText>What's your name?</FullWidthText>
+					<TextButtonInput
+						placeholder="Chickie McDee"
+						buttonText="let's go -->"
+						onClick={onClick}
+					/>
+				</div>
+			)}
+		</>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/NominationPage.js
+================================================
+import React, { useContext, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { FullWidthText } from "../components/Input/Text";
+import TextButtonInput from "../components/Input/TextButtonInput";
+import { BigText } from "../components/Input/Text";
+import { SmallButton } from "../components/Input/Buttons";
+import Table from "../components/Table";
+import CoopContext from "../context/coop-context";
+import toast from "react-hot-toast";
+
+export default function NominationPage(props) {
+	const params = useParams();
+	const coopContext = useContext(CoopContext);
+
+	function giveError() {
+		toast.success("Restaurant already added", {
+			position: "bottom-right",
+		});
+	}
+
+	async function postEggs(title) {
+		const result = await fetch(
+			`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/basket/${title}`,
+			{ method: "POST" }
+		);
+		if (result.status === 201) {
+			return result;
+		}
+		giveError();
+		return false;
+	}
+
+	useEffect(() => {
+		coopContext.connectToFlock(params.coopName);
+	}, [params.coopName]);
+
+	useEffect(() => {
+		console.log(coopContext.messages);
+	}, [coopContext.messages]);
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthText>Put your eggs in the basket</FullWidthText>
+			<TextButtonInput
+				placeholder="Restaurant Name"
+				buttonText="submit"
+				onClick={(input) => {
+					postEggs(input);
+				}}
+			/>
+			<BigText>The Basket</BigText>
+			<Table
+				rows={props.flock?.basket ? props.flock.basket.map((basket) => basket.title) : []}
+			/>
+			<SmallButton buttonText="let's go -->" onClick={props.nextStep} />
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/RegisterPage.js
+================================================
+import React, { useState } from "react";
+import { FullWidthButton } from "../components/Input/Buttons";
+import { Input } from "../components/Input/Input";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+export default function RegisterPage() {
+	const navigate = useNavigate();
+	const [emailValue, setEmail] = useState("");
+	const [passValue, setPassword] = useState("");
+	const [userName, setUserName] = useState("");
+
+	const handleChangeEmail = (event) => {
+		setEmail(event.target.value);
+	};
+
+	const handleChangePass = (event) => {
+		setPassword(event.target.value);
+	};
+
+	const handleChangeUserName = (event) => {
+		setUserName(event.target.value);
+	};
+
+	async function handleRegister(event) {
+		event.preventDefault(); // prevents refresh of page (or whatever default event)
+		try {
+			const result = await fetch(`${process.env.REACT_APP_API_URL}/auth/register`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ name: userName, email: emailValue, pass: passValue }),
+			});
+			if (result.status === 201) {
+				toast.success("Registration successful!");
+				navigate(`/login`);
+			} else {
+				toast.error("Registration failed. Please try again.");
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<form className="flex flex-col space-y-10 justify-center items-center">
+				<Input placeholder="chickenFeet123" onChange={handleChangeUserName}>
+					Username
+				</Input>
+				<Input placeholder="user@chickentinder.com" onChange={handleChangeEmail}>
+					Email
+				</Input>
+				<Input onChange={handleChangePass}>Password</Input>
+				<FullWidthButton onClick={handleRegister}>Register</FullWidthButton>
+			</form>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/TutorialPage.js
+================================================
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { FullWidthText, CombinedText } from "../components/Input/Text";
+import { SmallButton } from "../components/Input/Buttons";
+
+export default function TutorialPage() {
+	const navigate = useNavigate();
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthText>Welcome to Chicken Tinder!</FullWidthText>
+			<CombinedText title="The Pecking Order">
+				<ol className="list-decimal">
+					<li>Log in or create an account</li>
+					<li>Create a flock (group) or enter your coop name (group code)</li>
+					<li>Enter your name and wait for your fellow chicks (friends) to join</li>
+					<li>Submit your eggs (nominations) to the basket (list of options)</li>
+					<li>Vote for each option</li>
+					<li>Get ready to eat!</li>
+				</ol>
+			</CombinedText>
+			<SmallButton buttonText="let's go -->" onClick={() => navigate(`/welcome`)} />
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/VotingPage.js
+================================================
+import React, { useEffect, useState, useContext } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FullWidthText } from "../components/Input/Text";
+import { YesButton, NoButton } from "../components/Input/Buttons";
+import LoadingPage from "./LoadingPage";
+import { toast } from "react-hot-toast";
+import AuthContext from "../context/auth-context";
+import { useTimer } from "react-timer-hook";
+
+export default function VotingPage() {
+	const [egg, setEgg] = useState(null);
+	const [gifUrl, setGifUrl] = useState(null);
+
+	const [done, setDone] = useState(false);
+
+	const params = useParams();
+	const navigate = useNavigate();
+	const auth = useContext(AuthContext);
+
+	const coopName = params.coopName;
+	const chick = localStorage.getItem("chickName");
+
+	function postVote(body) {
+		fetch(`${process.env.REACT_APP_API_URL}/flocks/${coopName}/${chick}/vote/`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${auth.token}`,
+			},
+			body: body,
+		})
+			.then((response) => {
+				if (response.status === 204) {
+					setDone(true);
+				} else {
+					return response.json();
+				}
+			})
+			.then((data) => {
+				if (data) {
+					setEgg(data.egg);
+					setGifUrl(data.gifUrl);
+				}
+			})
+			.catch((error) => console.error("Error:", error));
+	}
+
+	useEffect(postVote, [chick, coopName, navigate]);
+
+	function handleVote(vote) {
+		egg.vote = vote;
+		const body = JSON.stringify({ egg: egg });
+
+		postVote(body);
+	}
+
+	// set timer
+	const { seconds, restart } = useTimer({
+		expiryTimestamp: new Date(),
+		onExpire: () => handleVote(0),
+	});
+
+	useEffect(() => {
+		const newExpiryTimestamp = new Date();
+		newExpiryTimestamp.setSeconds(newExpiryTimestamp.getSeconds() + 5);
+		restart(newExpiryTimestamp);
+	}, [egg]);
+
+	// toast timer visuals
+	useEffect(() => {
+		if (seconds < 4 && seconds > 0) {
+			toast(`${seconds} seconds remaining`, {
+				duration: 1000,
+				position: "top-right",
+			});
+		}
+	}, [seconds]);
+
+	return (
+		<>
+			{egg && !done ? (
+				<div className="flex flex-col space-y-normal justify-center w-5/6 h-[550px]">
+					<FullWidthText name="egg">{egg.title}</FullWidthText>
+					<div className="flex flex-row justify-between h-full">
+						<NoButton buttonText="<-- No" onClick={() => handleVote(-1)} />
+						<div className="flex flex-col space-y-normal justify-center w-full">
+							{gifUrl && <img className="rounded-normal" src={gifUrl} alt="gif" />}
+						</div>
+						<YesButton buttonText="Yes -->" onClick={() => handleVote(1)} />
+					</div>
+				</div>
+			) : (
+				<LoadingPage />
+			)}
+		</>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/WelcomePage.js
+================================================
+import React, { useContext } from "react";
+import { FullWidthButton } from "../components/Input/Buttons";
+import TextButtonInput from "../components/Input/TextButtonInput";
+import { useNavigate } from "react-router-dom";
+import AuthContext from "../context/auth-context";
+import toast from "react-hot-toast";
+
+export default function WelcomePage() {
+	const navigate = useNavigate();
+	const auth = useContext(AuthContext);
+
+	async function createGroup() {
+		if (!auth.isLoggedIn) {
+			toast.error("You must be logged in to create a group");
+			navigate("/login");
+			return;
+		}
+		const res = await fetch(`${process.env.REACT_APP_API_URL}/flocks`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${auth.token}`,
+			},
+		});
+		if (res.status === 201) {
+			const info = await res.json();
+			navigate(`/flock/${info.coopName}/join`);
+		} else {
+			console.error("Failed to create group");
+		}
+	}
+
+	return (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthButton onClick={createGroup}>Rally my flock</FullWidthButton>
+			<TextButtonInput
+				placeholder="Or enter coop name to join a flock"
+				buttonText="let's go -->"
+				onClick={(input) => navigate(`/flock/${input}/join`)}
+			/>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/frontend/src/pages/WinnerPage.js
+================================================
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { FullWidthText, BigText } from "../components/Input/Text";
+import { HalfWidthButton } from "../components/Input/Buttons";
+import LoadingPage from "./LoadingPage";
+
+export default function WinnerPage(props) {
+	const navigate = useNavigate();
+	const params = useParams();
+
+	const [winningRestaurant, setWinner] = useState(null);
+
+	useEffect(() => {
+		async function getWinner() {
+			const response = await fetch(
+				`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/decision`
+			);
+			if (response.status === 404) {
+				setWinner("");
+			} else {
+				const data = await response.json();
+				setWinner(data.winner);
+			}
+		}
+		getWinner();
+	}, [params.coopName]);
+
+	async function resetEggs() {
+		await fetch(`${process.env.REACT_APP_API_URL}/flocks/${params.coopName}/basket/`, {
+			method: "DELETE",
+		});
+		return false;
+	}
+
+	return winningRestaurant === null ? (
+		<LoadingPage />
+	) : (
+		<div className="flex flex-col space-y-normal justify-center w-5/6">
+			<FullWidthText>
+				{winningRestaurant ? "Winner Winner Chicken Dinner!" : "Your eggs have cracked..."}
+			</FullWidthText>
+			<BigText>{winningRestaurant ? winningRestaurant : "Decision not available"}</BigText>
+			<div className="flex justify-between">
+				<HalfWidthButton buttonText="Return Home" onClick={() => navigate("/")} />
+				<HalfWidthButton
+					buttonText="Revote"
+					onClick={async (e) => {
+						await resetEggs();
+						props.nextStep(e, 2);
+					}}
+				/>
+			</div>
+		</div>
+	);
+}
+
+
+
+================================================
+FILE: packages/testing/cypress.config.js
+================================================
+import { defineConfig } from "cypress";
+
+// Leaving this here so Cypress can find the config file
+export default defineConfig({
+	e2e: {
+		// setupNodeEvents(on, config) {
+		//   // implement node event listeners here
+		// },
+	},
+});
+
+
+
+================================================
+FILE: packages/testing/package.json
+================================================
+{
+	"name": "testing",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"cy:open": "cypress open",
+		"cy:run": "cypress run"
+	},
+	"type": "module",
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"cypress": "^13.6.6"
+	},
+	"dependencies": {
+		"aggregate-error": "^5.0.0",
+		"cli-truncate": "^4.0.0",
+		"throttleit": "^2.0.0"
+	}
+}
+
+
+
+================================================
+FILE: packages/testing/.eslintrc
+================================================
+{
+    "plugins": ["cypress"],
+    "env": {
+        "cypress/globals": true
+    }
+}
+
+
+================================================
+FILE: packages/testing/cypress/e2e/single-user.cy.js
+================================================
+const FRONTEND_URL = "http://localhost:3000";
+
+/**
+ * Run
+ * db.flocks.deleteMany({'chicks.name': 'Cypress Test Chick'})
+ * in the database to clean up after this test
+ */
+
+describe("Happy Path -- Group Leader", () => {
+	const chickNameInput = "Cypress Test Chick";
+	const restaurantsInput = ["Test Restaurant 1", "Test Restaurant 2", "Test Restaurant 3"];
+
+	// const chickUsername = "cypressTestChick";
+	const chickEmail = "test@chick.com";
+	const chickPassword = "testPassword";
+
+	let coopName;
+	let jwt_token;
+
+	it("open the app", () => {
+		cy.visit(FRONTEND_URL);
+		cy.get("button").click();
+	});
+
+	it("Log in", () => {
+		cy.visit(`${FRONTEND_URL}/welcome/`);
+		cy.get("button").contains("Rally my flock").click();
+
+		// log in
+		cy.get("input[placeholder='user@chickentinder.com']").type(chickEmail);
+		cy.get("span").contains("Password").next().type(chickPassword);
+		cy.get("button").contains("Login").click();
+
+		// verify login
+		cy.get("button").contains("Rally my flock").should("exist");
+		cy.getCookie("token").should("exist");
+		cy.getCookie("token").then((cookie) => {
+			jwt_token = cookie.value;
+		});
+	});
+
+	it("create a flock and input name", () => {
+		cy.setCookie("token", jwt_token);
+		cy.visit(`${FRONTEND_URL}/welcome/`);
+
+		cy.get("button").contains("Rally my flock").click();
+
+		cy.get("input[placeholder='Chickie McDee']").type(chickNameInput);
+		cy.get("button").contains("let's go -->").click();
+
+		cy.get("div")
+			.contains("Coop Name:")
+			.then((data) => {
+				coopName = data.text().split(":")[1].trim();
+			});
+
+		cy.getAllLocalStorage().then((data) => {
+			const { chickName } = data[FRONTEND_URL];
+			expect(chickName).to.eq(chickNameInput);
+		});
+
+		cy.get("tbody").find("tr").should("have.length", 1);
+		cy.get("td").should("contain", chickNameInput);
+	});
+
+	it("join flock and input restaurants", () => {
+		// TODO: this is temporary until we fix local storage
+		localStorage.setItem("chickName", chickNameInput);
+		cy.getAllLocalStorage().then((data) => {
+			const { chickName } = data[FRONTEND_URL];
+			expect(chickName).to.eq(chickNameInput);
+		});
+		cy.setCookie("token", jwt_token);
+
+		cy.visit(`${FRONTEND_URL}/flock/${coopName}`);
+
+		cy.get("tbody").should("have.length", 1);
+		cy.get("td").should("contain", chickNameInput);
+
+		cy.get("button").contains("let's go -->").click();
+
+		let l = 0;
+		for (const restaurant of restaurantsInput) {
+			cy.get("input[placeholder='Restaurant Name']").type(restaurant);
+			cy.get("button").contains("submit").click();
+			l++;
+
+			cy.get("tbody").find("tr").should("have.length", l);
+			cy.get("td:last").should("contain", restaurant);
+
+			cy.get("input[placeholder='Restaurant Name']").clear();
+		}
+	});
+
+	it("vote for restaurants and view winner", () => {
+		// TODO: this is temporary until we fix local storage
+		localStorage.setItem("chickName", chickNameInput);
+		cy.getAllLocalStorage().then((data) => {
+			const { chickName } = data[FRONTEND_URL];
+			expect(chickName).to.eq(chickNameInput);
+		});
+		cy.setCookie("token", jwt_token);
+
+		cy.visit(`${FRONTEND_URL}/flock/${coopName}/`);
+
+		cy.get("button").contains("let's go -->").click();
+
+		const votedEggs = [];
+
+		for (let i = 0; i < 3; i++) {
+			cy.get("div[name='egg']").should((egg) => {
+				expect(restaurantsInput.includes(egg.text())).to.be.true;
+				expect(votedEggs.includes(egg.text())).to.be.false;
+				votedEggs.push(egg.text());
+			});
+
+			cy.get("button").contains("Yes -->").click();
+		}
+
+		cy.get("div").should("contain", "Winner Winner Chicken Dinner!");
+		cy.get("div").should("contain", restaurantsInput[0]);
+	});
+});
+
+
+
+================================================
+FILE: packages/testing/cypress/fixtures/example.json
+================================================
+{
+	"name": "Using fixtures to represent data",
+	"email": "hello@cypress.io",
+	"body": "Fixtures are a great way to mock data for responses to routes"
+}
+
+
+
+================================================
+FILE: packages/testing/cypress/support/commands.js
+================================================
+// ***********************************************
+// This example commands.js shows you how to
+// create various custom commands and overwrite
+// existing commands.
+//
+// For more comprehensive examples of custom
+// commands please read more here:
+// https://on.cypress.io/custom-commands
+// ***********************************************
+//
+//
+// -- This is a parent command --
+// Cypress.Commands.add('login', (email, password) => { ... })
+//
+//
+// -- This is a child command --
+// Cypress.Commands.add('drag', { prevSubject: 'element'}, (subject, options) => { ... })
+//
+//
+// -- This is a dual command --
+// Cypress.Commands.add('dismiss', { prevSubject: 'optional'}, (subject, options) => { ... })
+//
+//
+// -- This will overwrite an existing command --
+// Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
+
+
+
+================================================
+FILE: packages/testing/cypress/support/e2e.js
+================================================
+// ***********************************************************
+// This example support/e2e.js is processed and
+// loaded automatically before your test files.
+//
+// This is a great place to put global configuration and
+// behavior that modifies Cypress.
+//
+// You can change the location of this file or turn off
+// automatically serving support files with the
+// 'supportFile' configuration option.
+//
+// You can read more here:
+// https://on.cypress.io/configuration
+// ***********************************************************
+
+// Import commands.js using ES2015 syntax:
+import "./commands";
+
+// Alternatively you can use CommonJS syntax:
+// require('./commands')
+
+
+
+================================================
+FILE: .github/workflows/ci-cd_chickentinder-backend.yml
+================================================
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js app to Azure Web App - chickentinder-backend
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Node.js version
+              uses: actions/setup-node@v3
+              with:
+                  node-version: "20.x"
+
+            - name: npm install, build, and test
+              run: |
+                  npm install --workspaces=false
+                  npm run -w backend test --if-present
+              working-directory: packages/backend
+
+            - name: Zip artifact for deployment
+              run: zip release.zip ./* -r
+              working-directory: packages/backend
+
+            - name: Upload artifact for deployment job
+              uses: actions/upload-artifact@v3
+              with:
+                  name: node-app
+                  path: packages/backend/release.zip
+
+    deploy:
+        runs-on: ubuntu-latest
+        needs: build
+        environment:
+            name: "Production"
+            url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+        permissions:
+            id-token: write #This is required for requesting the JWT
+
+        steps:
+            - name: Download artifact from build job
+              uses: actions/download-artifact@v3
+              with:
+                  name: node-app
+
+            - name: Unzip artifact for deployment
+              run: unzip release.zip
+
+            - name: Login to Azure
+              uses: azure/login@v1
+              with:
+                  client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4490C1A0F65947C8A92A3F877E8CD034 }}
+                  tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52193C5847F1443DB44DB4C54B8F9151 }}
+                  subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5356E9A99AB746ABBE7297950CCF95D5 }}
+
+            - name: "Deploy to Azure Web App"
+              id: deploy-to-webapp
+              uses: azure/webapps-deploy@v2
+              with:
+                  app-name: "chickentinder-backend"
+                  slot-name: "Production"
+                  package: .
+
+
+
+================================================
+FILE: .github/workflows/ci-testing.yml
+================================================
+name: CI Testing
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v3
+              with:
+                  node-version: 20
+            - run: npm ci
+            - run: npm run lint
+            - run: npm run test
+              env:
+                  REACT_APP_API_URL: http://localhost:8000
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  TENOR_API_KEY: ${{ secrets.TENOR_API_KEY }}
+                  JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+
+
+
+================================================
+FILE: .github/workflows/frontend-deploy.yml
+================================================
+#  Name of workflow
+name: Deploy Frontend
+
+# When workflow is triggered
+on:
+    push:
+        branches:
+            - main
+
+# Jobs to carry out
+jobs:
+    deploy:
+        # Operating system to run job on
+        runs-on: ubuntu-latest
+        # Steps in job
+        steps:
+            # Get code from repo
+            - name: Checkout code
+              uses: actions/checkout@v4
+            # Install NodeJS
+            - name: Set up NodeJS
+              uses: actions/setup-node@v3
+              with:
+                  node-version: "20.x"
+            # Run npm install and build on our code
+            - name: Run build and frontend tests
+              run: |
+                  npm install --workspaces=false
+                  npm run test --if-present
+                  npm run build --if-present
+              env:
+                  CI: false
+              working-directory: packages/frontend
+            # Deploy to Netlify using our production secrets
+            - name: Deploy to netlify
+              uses: netlify/actions/cli@master
+              env:
+                  NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+                  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+              with:
+                  args: deploy --dir=packages/backend/build --prod
+                  secrets: '["NETLIFY_AUTH_TOKEN", "NETLIFY_SITE_ID"]'
+
+

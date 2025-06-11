@@ -1,0 +1,778 @@
+Directory structure:
+└── bshowell0-365-lab7/
+    ├── README.md
+    ├── main.py
+    ├── .env.example
+    └── src/
+        ├── __init__.py
+        ├── printer.py
+        ├── request.py
+        └── validate.py
+
+================================================
+FILE: README.md
+================================================
+# 365-lab7
+
+Brandon Howell
+* git log saved in `git.log` file
+
+To run the program, use `python main.py`
+
+Rename the `.env.example` file to `.env`.
+Modify your newly renamed `.env` file to include your `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and `DB_NAME`.
+
+
+
+================================================
+FILE: main.py
+================================================
+from dotenv import load_dotenv
+import os
+import mysql.connector
+from src import *
+
+load_dotenv()
+
+def main():
+    conn = mysql.connector.connect(user=os.getenv('DB_USER'),
+                                   password=os.getenv('DB_PASSWORD'),
+                                   host=os.getenv('DB_HOST'),
+                                   database=os.getenv('DB_NAME'))
+    cursor = conn.cursor()
+    printer.welcome()
+    usr = printer.usr()
+    while not validate.quit(usr):
+        if validate.fr1(usr):
+            request.fr1(cursor)
+        elif validate.fr2(usr):
+            request.fr2(cursor, conn)
+        elif validate.fr3(usr):
+            request.fr3(cursor, conn)
+        elif validate.fr4(usr):
+            request.fr4(cursor)
+        elif validate.fr5(usr):
+            request.fr5(cursor)
+        else:
+            printer.invalid()
+        usr = printer.usr("\n")
+
+    cursor.close()
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+================================================
+FILE: .env.example
+================================================
+DB_USER=[USERNAME]
+DB_PASSWORD=[PASSWORD]
+DB_HOST=mysql.labthreesixfive.com
+DB_NAME=[DATABASE_NAME]
+
+
+================================================
+FILE: src/__init__.py
+================================================
+import os
+
+# add `# type: ignore` to supress incorrect not defined errors in main or other files
+
+# get files in the current file's directory
+# files = os.listdir(os.path.dirname(os.path.realpath(__file__)))
+# files = [file[:-3] for file in files if file.endswith(".py") and "_script" not in file and file != "__init__.py"]
+# __all__ = files
+
+__all__ = ['printer', 'request', 'validate']
+
+
+================================================
+FILE: src/printer.py
+================================================
+import os
+import pandas as pd
+from datetime import datetime, timedelta
+from decimal import Decimal
+from . import request, validate
+
+
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+try:
+    terminal_width = os.get_terminal_size().columns
+    pd.set_option('display.width', terminal_width)
+except OSError:
+    pass
+
+def welcome():
+    try:
+        terminal_height = os.get_terminal_size().lines - 2
+    except OSError:
+        terminal_height = 100
+    print("\n" * terminal_height + "\033[H\033[J", end="")
+    print("Welcome to the Hotel Reservation System!")
+
+def invalid():
+    print("Invalid input.\nType the code, full name, or underlined portion.\nE.g. 'FR1', 'Rooms and Rates', 'Rooms', or 'Rates'.\nCase insensitive.\n'Q' or 'Quit' to exit.")
+
+def usr(extra=""):
+    f = {"u": "\033[4m", "r": "\033[0m"}  # format: [underline, reset]
+    spiel = (
+        "Please select an option:\n\n"
+        f"FR1: {f['u']}Rooms{f['r']} and {f['u']}Rates{f['r']}\n"
+        f"FR2: {f['u']}Res{f['r']}ervations\n"
+        f"FR3: Reservation {f['u']}Cancel{f['r']}lation\n"
+        f"FR4: {f['u']}Detail{f['r']}ed Reservation {f['u']}Info{f['r']}rmation\n"
+        f"FR5: {f['u']}Rev{f['r']}enue\n"
+        f"{f['u']}Q{f['r']}uit\n"
+    )
+    usr = input(extra + spiel).lower()
+    print("\033[H\033[J", end="")
+    return usr
+
+
+def fr1_res(data):
+    df = pd.DataFrame(data, columns=["RoomCode", "RoomName", "Beds", "BedType", "MaxOcc", "BasePrice", "Decor", "PopularityScore", "NextAvailableCheckIn", "LengthOfStay", "CheckoutDate"])
+    df.index += 1
+    print(df)
+
+def fr2_req():
+    disp = [
+        "First name: ",
+        "Last name: ",
+        "Room code (“Any” to indicate no preference): ",
+        "Bed type (“Any” to indicate no preference): ",
+        "Begin date of stay [YYYY-MM-DD]: ",
+        "End date of stay [YYYY-MM-DD]: ",
+        "Number of children: ",
+        "Number of adults: "
+    ]
+    print("Please enter the following information to make a reservation:\n", "\n".join(disp), sep="\n")
+    options = ["first", "last", "room", "bed", "start", "end", "children", "adults"]
+    choices = {}
+    for i, option in enumerate(options):
+        choices[option] = input(f"\033[0m{disp[i]}\033[4m") if i > 0 else input("\033[3;13H\033[4m")
+    print("\033[0m\033[H\033[J", end="")
+    return choices
+
+def fr2_res(cursor, data, choices):
+    start_date = datetime.strptime(choices['start'], '%Y-%m-%d').date()
+    end_date = datetime.strptime(choices['end'], '%Y-%m-%d').date()
+    num_weekdays = 0
+    num_weekends = 0
+    for i in range((end_date - start_date).days):
+        if (start_date + timedelta(days=i)).weekday() < 5:
+            num_weekdays += 1
+        else:
+            num_weekends += 1
+    df = pd.DataFrame(data, columns=["RoomCode", "RoomName", "Beds", "BedType", "MaxOcc", "BasePrice", "Decor"])
+    df['CheckIn'] = choices['start']
+    df['CheckOut'] = choices['end']
+    df["TotalCost"] = num_weekdays * df['BasePrice'] + num_weekends * df['BasePrice'] * Decimal('1.1')
+    df["TotalCost"] = df["TotalCost"].map("{:.2f}".format)
+    df.index += 1
+    print(df)
+    num_selected = None
+    while num_selected is None or (num_selected.isdigit() and not (df.index.start <= int(num_selected) < df.index.stop) and int(num_selected) != 0):
+        if num_selected is not None:
+            print("Invalid input. Please enter the number of the room you'd like to reserve, or 0 to cancel.")
+        num_selected = input("Choose the number of the room you'd like to reserve, or 0 to cancel: ")
+    print("\033[H\033[J", end="")
+    num_selected = int(num_selected)
+    if num_selected == 0:
+        return (False, [])
+
+    if not request.fr2_res_update(cursor, choices, df.loc[num_selected]):
+        print("Reservation failed. Please try again.")
+        return (False, [])
+    chosen_room = df[num_selected-1:num_selected].to_string().split('\n')
+    print(f"{chosen_room[0]}\n\033[92m{chosen_room[1]}\033[0m\n")
+    print("Your reservation under the name of", choices["first"], choices["last"], "for room", df.loc[num_selected, "RoomCode"], "has been made for", choices["start"], "until", choices["end"])
+    return (True, df.loc[num_selected])
+
+def fr2_empty_res(cursor, df, choices):
+
+    def calculate_total_cost(row):
+        start_date = datetime.strptime(row['CheckIn'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(row['CheckOut'], '%Y-%m-%d').date()
+        num_weekdays = 0
+        num_weekends = 0
+        for i in range((end_date - start_date).days):
+            if (start_date + timedelta(days=i)).weekday() < 5:
+                num_weekdays += 1
+            else:
+                num_weekends += 1
+        total_cost = num_weekdays * row['BasePrice'] + num_weekends * row['BasePrice'] * Decimal('1.1')
+        return "{:.2f}".format(total_cost)
+
+    if df.empty:
+        return (False, [])
+    df['TotalCost'] = df.apply(calculate_total_cost, axis=1)
+
+    print(df)
+    num_selected = None
+    while num_selected is None or (num_selected.isdigit() and not (df.index.start <= int(num_selected) < df.index.stop) and int(num_selected) != 0):
+        if num_selected is not None:
+            print("Invalid input. Please enter the number of the room you'd like to reserve, or 0 to cancel.")
+        num_selected = input("Sorry, no rooms exactly fitting your criteria were found. Here are some options closely matching your request.\nChoose the number of the room you'd like to reserve, or 0 to cancel: ")
+    print("\033[H\033[J", end="")
+    num_selected = int(num_selected)
+    if num_selected == 0:
+        return (False, [])
+
+    if not request.fr2_res_update(cursor, choices, df.loc[num_selected]):
+        print("Reservation failed. Please try again.")
+        return (False, [])
+    chosen_room = df[num_selected-1:num_selected].to_string().split('\n')
+    print(f"{chosen_room[0]}\n\033[92m{chosen_room[1]}\033[0m\n")
+    print("Your reservation under the name of", choices["first"], choices["last"], "for room", df.loc[num_selected, "RoomCode"], "has been made for", df.loc[num_selected, 'CheckIn'], "until", df.loc[num_selected, 'CheckOut'])
+    return (True, df.loc[num_selected])
+
+def res_code(code):
+    print(f"Your reservation code is {code}")
+
+def fr2_failed():
+    print("Sorry, there are no exact nor approximate reservations available matching your criteria.")
+
+def fr3_req():
+    res_num = None
+    while not validate.fr3_req(res_num):
+        if res_num is not None:
+            print("Invalid input. Please enter the reservation code you'd like to cancel.")
+        res_num = input("Please enter the reservation code you'd like to cancel: ")
+    print("\033[H\033[J", end="")
+    return res_num
+
+def fr3_failed():
+    print("Sorry, no reservation was found with that code.")
+
+def fr3_confirm(code, data):
+    print(f"Reservation {code}:")
+    df = pd.DataFrame(data, columns=["Reservation", "Room", "CheckIn", "Checkout", "Rate", "LastName", "FirstName", "Adults", "Kids"])
+    df.index += 1
+    print(df)
+    f = {"u": "\033[4m", "r": "\033[0m"}  # format: [underline, reset]
+    confirm = None
+    while validate.fr3_confirm(confirm) is False:
+        if confirm is not None:
+            print(f"Invalid input. Please enter '{f['u']}Y{f['r']}es' or '{f['u']}N{f['r']}o'.")
+        confirm = input(f"Are you sure you want to cancel this reservation? ({f['u']}Y{f['r']}es/{f['u']}N{f['r']}o): ").upper()
+    print("\033[H\033[J", end="")
+    return confirm[0] == "Y"
+
+def fr4_req():
+    disp = [
+        "First name: ",
+        "Last name: ",
+        "Date(s) [YYYY-MM-DD [to YYYY-MM-DD]]: ",
+        "Room code: ",
+        "Reservation number: "
+    ]
+    print("Please enter the following information to make a reservation:\n", "\n".join(disp), sep="\n")
+    options = ["first", "last", "date", "room", "res"]
+    choices = {}
+    for i, option in enumerate(options):
+        choices[option] = input(f"\033[0m{disp[i]}\033[4m") if i > 0 else input("\033[3;13H\033[4m")
+    print("\033[0m\033[H\033[J", end="")
+    return choices
+
+def fr4_res(data):
+    df = pd.DataFrame(data, columns=["CODE", "Room", "RoomName", "CheckIn", "Checkout", "Rate", "LastName", "FirstName", "Adults", "Kids"])
+    df.index += 1
+    if df.empty:
+        print("No reservations found.")
+    else:
+        print(df)
+
+def fr5(result):
+    df = pd.DataFrame(result, columns=["Room", "Rate", "CheckIn", "Checkout"])
+    df['CheckIn'] = pd.to_datetime(df['CheckIn'])
+    df['Checkout'] = pd.to_datetime(df['Checkout'])
+    df['Date'] = df.apply(lambda row: pd.date_range(start=row['CheckIn'], end=row['Checkout'] - pd.Timedelta(days=1), freq='D'), axis=1)
+    df = df.explode('Date')
+    df['DailyRevenue'] = df['Rate']
+    df['Month'] = df['Date'].dt.month
+    month_names = {
+        1: 'January',
+        2: 'February',
+        3: 'March',
+        4: 'April',
+        5: 'May',
+        6: 'June',
+        7: 'July',
+        8: 'August',
+        9: 'September',
+        10: 'October',
+        11: 'November',
+        12: 'December'
+    }
+    pivot = df.pivot_table(index='Room', columns='Month', values='DailyRevenue', aggfunc='sum', fill_value=0)
+    pivot = pivot.rename(columns=month_names)
+    pivot['Yearly Total'] = pivot.sum(axis=1)
+    pivot.loc['Monthly Total'] = pivot.sum()
+    pivot = pivot.round(0).astype(int)
+    print(pivot)
+
+
+
+================================================
+FILE: src/request.py
+================================================
+from . import printer, validate
+from datetime import datetime, timedelta
+import pandas as pd
+
+
+def fr1(cursor):
+    request = (
+        "WITH reservation_data AS ( "
+          "SELECT  "
+            "Room, "
+            "COALESCE(ROUND(COUNT(DATEDIFF(CheckIn, Checkout))/180, 2), 0) AS PopularityScore, "
+            "MIN(CASE WHEN Checkout >= CURDATE() THEN Checkout END) + INTERVAL 1 DAY AS NextAvailableCheckIn, "
+            "MAX(CASE WHEN Checkout <= CURDATE() THEN Checkout END) AS LastCheckout "
+          "FROM  "
+            "bshowell.lab7_reservations "
+          "WHERE  "
+            "CheckIn >= DATE_SUB(CURDATE(), INTERVAL 180 DAY) "
+          "GROUP BY  "
+            "Room "
+        "), "
+        "stay_data AS ( "
+          "SELECT  "
+            "Room, "
+            "DATEDIFF(Checkout, CheckIn) AS LengthOfStay "
+          "FROM  "
+            "bshowell.lab7_reservations "
+          "WHERE  "
+            "Checkout = (SELECT LastCheckout FROM reservation_data WHERE Room = bshowell.lab7_reservations.Room) "
+        ") "
+        "SELECT  "
+          "r.*,  "
+          "res.PopularityScore, "
+          "res.NextAvailableCheckIn, "
+          "s.LengthOfStay, "
+          "res.LastCheckout AS CheckoutDate "
+        "FROM  "
+          "bshowell.lab7_rooms AS r "
+        "LEFT JOIN  "
+          "reservation_data AS res "
+        "ON  "
+          "r.RoomCode = res.Room "
+        "LEFT JOIN  "
+          "stay_data AS s "
+        "ON  "
+          "r.RoomCode = s.Room "
+        "ORDER BY  "
+          "res.PopularityScore DESC; "
+    )
+    cursor.execute(request)
+    result = cursor.fetchall()
+    printer.fr1_res(result)
+
+def fr2(cursor, conn):
+    choices = printer.fr2_req()
+    choices = validate.fr2_req(choices)
+
+    query = """
+        SELECT
+            r.RoomCode,
+            r.RoomName,
+            r.Beds,
+            r.bedType,
+            r.maxOcc,
+            r.basePrice,
+            r.decor
+        FROM
+            bshowell.lab7_rooms AS r
+        WHERE
+            r.RoomCode NOT IN (
+                SELECT
+                    res.Room
+                FROM
+                    bshowell.lab7_reservations AS res
+                WHERE
+                    (res.CheckIn < %s AND res.Checkout > %s) OR (res.CheckIn <= %s AND res.Checkout > %s)
+            )
+            AND r.maxOcc >= %s
+    """
+    params = [
+        choices["end"],
+        choices["start"],
+        choices["end"],
+        choices["start"],
+        str(int(choices["children"]) + int(choices["adults"]))
+    ]
+
+    if choices["room"] != 'ANY':
+        query += " AND r.RoomCode = %s"
+        params.append(choices["room"])
+    if choices["bed"] != 'ANY':
+        query += " AND r.bedType = %s"
+        params.append(choices["bed"])
+
+    query += " ORDER BY r.basePrice;"
+
+    cursor.execute(query, params)
+
+    result = cursor.fetchall()
+    if result != []:
+        (success, df) = printer.fr2_res(cursor, result, choices)
+    else:
+        (success, df) = fr2_res_empty(cursor, choices)
+    if success:
+        conn.commit()
+        printer.res_code(get_res_code(cursor, df))
+    else:
+        printer.fr2_failed()
+
+def fr2_res_empty(cursor, choices):
+    start_date = datetime.strptime(choices['start'], '%Y-%m-%d').date()
+    end_date = datetime.strptime(choices['end'], '%Y-%m-%d').date()
+    num_days = (end_date - start_date).days
+    query2 = """
+        SELECT
+            MIN(res1.Checkout) AS NextCheckout,
+            (SELECT MIN(res2.CheckIn) FROM bshowell.lab7_reservations AS res2 WHERE res2.CheckIn > MIN(res1.Checkout) AND (res2.Room = %s OR %s = 'ANY')) AS NextCheckIn
+        FROM
+            bshowell.lab7_reservations AS res1
+        JOIN bshowell.lab7_rooms AS rooms
+        WHERE
+            res1.Checkout > %s AND
+            rooms.maxOcc >= %s AND
+            (res1.Room = %s OR %s = 'ANY')
+
+    """
+    params2 = [choices["room"], choices["room"], choices["start"], str(int(choices["children"]) + int(choices["adults"])), choices["room"], choices["room"]]
+
+    query2 += " ORDER BY NextCheckout"
+
+
+    cursor.execute(query2, params2)
+    result2 = cursor.fetchall()
+    # print(result2)
+    # exit("user exit")
+    old_dates = (choices["start"], choices["end"])
+    if result2 != [] and result2[0][0] is not None and result2[0][1] is not None:
+        if (result2[0][0] + timedelta(days=num_days)) < result2[0][1]:
+            new_dates = (result2[0][0].strftime("%Y-%m-%d"), (result2[0][0] + timedelta(days=num_days)).strftime("%Y-%m-%d"), result2[0][1].strftime("%Y-%m-%d"))
+        else:
+            new_dates = (result2[0][0].strftime("%Y-%m-%d"), result2[0][1].strftime("%Y-%m-%d"), (result2[0][0] + timedelta(days=num_days)).strftime("%Y-%m-%d"))
+        choices["start"] = new_dates[0]
+        choices["end"] = new_dates[1]
+        # print("new_dates:", new_dates)
+        query = """
+            SELECT
+                r.RoomCode,
+                r.RoomName,
+                r.Beds,
+                r.bedType,
+                r.maxOcc,
+                r.basePrice,
+                r.decor
+            FROM
+                bshowell.lab7_rooms AS r
+            WHERE
+                r.RoomCode NOT IN (
+                    SELECT
+                        res.Room
+                    FROM
+                        bshowell.lab7_reservations AS res
+                    WHERE
+                        (res.CheckIn < %s AND res.Checkout > %s) OR (res.CheckIn <= %s AND res.Checkout > %s)
+                )
+                AND r.maxOcc >= %s
+        """
+        params = [
+            choices["end"],
+            choices["start"],
+            choices["end"],
+            choices["start"],
+            str(int(choices["children"]) + int(choices["adults"]))
+        ]
+
+
+        if choices["room"] != 'ANY':
+            query += " AND r.RoomCode = %s"
+            params.append(choices["room"])
+        if choices["bed"] != 'ANY':
+            query += " AND r.bedType = %s"
+            params.append(choices["bed"])
+
+        query += " ORDER BY r.basePrice;"
+
+        cursor.execute(query, params)
+
+        result1 = cursor.fetchall()
+        # print("result 1:", result1)
+    else:  # should probably never happen
+        result1 = []
+        new_dates = old_dates
+    choices["start"] = old_dates[0]
+    choices["end"] = old_dates[1]
+    query = """
+        SELECT
+            r.RoomCode,
+            r.RoomName,
+            r.Beds,
+            r.bedType,
+            r.maxOcc,
+            r.basePrice,
+            r.decor
+        FROM
+            bshowell.lab7_rooms AS r
+        WHERE
+            r.RoomCode NOT IN (
+                SELECT
+                    res.Room
+                FROM
+                    bshowell.lab7_reservations AS res
+                WHERE
+                    (res.CheckIn < %s AND res.Checkout > %s) OR (res.CheckIn <= %s AND res.Checkout > %s)
+            )
+            AND r.maxOcc >= %s
+        LIMIT 5
+    """
+    params = [
+        choices["end"],
+        choices["start"],
+        choices["end"],
+        choices["start"],
+        str(int(choices["children"]) + int(choices["adults"]))
+    ]
+    cursor.execute(query, params)
+    result2 = cursor.fetchall()
+
+    query3 = """
+SELECT r.RoomCode, r.RoomName, r.Beds, r.bedType, r.maxOcc, r.basePrice, r.decor,
+r1.Checkout AS GapStart, MIN(r2.CheckIn) AS GapEnd
+FROM bshowell.lab7_reservations r1
+JOIN bshowell.lab7_reservations r2 ON r1.Room = r2.Room AND r2.CheckIn > r1.Checkout
+JOIN bshowell.lab7_rooms r ON r.RoomCode = r1.Room
+WHERE r1.Checkout > %s
+GROUP BY r1.Room, r1.Checkout
+HAVING DATEDIFF(MIN(r2.CheckIn), r1.Checkout) > 1
+AND %s <= r.maxOcc
+ORDER BY GapStart
+LIMIT 5;
+
+"""
+    cursor.execute(query3, [choices["start"], str(int(choices["children"]) + int(choices["adults"]))])
+    result3 = cursor.fetchall()
+
+
+    df1 = pd.DataFrame(result1, columns=["RoomCode", "RoomName", "Beds", "BedType", "MaxOcc", "BasePrice", "Decor"])
+    df1['CheckIn'] = new_dates[0]
+    df1['CheckOut'] = new_dates[1]
+    df2 = pd.DataFrame(result2, columns=["RoomCode", "RoomName", "Beds", "BedType", "MaxOcc", "BasePrice", "Decor"])
+    df2['CheckIn'] = old_dates[0]
+    df2['CheckOut'] = old_dates[1]
+    df3 = pd.DataFrame(result3, columns=["RoomCode", "RoomName", "Beds", "BedType", "MaxOcc", "BasePrice", "Decor", "CheckIn", "CheckOut"])
+    df3['CheckIn'] = df3['CheckIn'].map(lambda x: x.strftime("%Y-%m-%d"))
+    df3['CheckOut'] = df3['CheckOut'].map(lambda x: x.strftime("%Y-%m-%d"))
+    df = pd.concat([df1, df2, df3]).reset_index(drop=True).head(5)
+    df.index += 1
+    return printer.fr2_empty_res(cursor, df, choices)
+
+def fr2_res_update(cursor, choices, df):
+    try:
+        total_nights = (datetime.strptime(df["CheckOut"], "%Y-%m-%d") - datetime.strptime(df["CheckIn"], "%Y-%m-%d")).days
+        query = """INSERT INTO bshowell.lab7_reservations (Room, CheckIn, Checkout, Rate, LastName, FirstName, Adults, Kids)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"""
+        params = [
+            df["RoomCode"],
+            df["CheckIn"],
+            df["CheckOut"],
+            str(round(float(df["TotalCost"]) / total_nights, 2)),
+            choices["last"],
+            choices["first"],
+            choices["adults"],
+            choices["children"]
+        ]
+        cursor.execute(query, params)
+        return True
+    except:
+        return False
+
+def get_res_code(cursor, df):
+    query = """
+SELECT CODE
+FROM bshowell.lab7_reservations
+WHERE Room = %s AND CheckIn = %s AND Checkout = %s
+"""
+    params = [df["RoomCode"], df["CheckIn"], df["CheckOut"]]
+    cursor.execute(query, params)
+    return cursor.fetchall()[0][0]
+
+
+def fr3(cursor, conn):
+    res_num = printer.fr3_req()
+    # get reservation info
+    query = "SELECT * FROM bshowell.lab7_reservations WHERE CODE = %s"
+    cursor.execute(query, [res_num])
+    result = cursor.fetchall()
+    if result == []:
+        printer.fr3_failed()
+        return
+    if not printer.fr3_confirm(res_num, result):
+        return
+    query = "DELETE FROM bshowell.lab7_reservations WHERE CODE = %s"
+    cursor.execute(query, [res_num])
+    conn.commit()
+    print("Reservation", res_num, "cancelled.")
+
+
+def fr4(cursor):
+    choices = printer.fr4_req()
+    choices = validate.fr4_req(choices)
+    # print(choices)
+    query = """
+SELECT res.CODE, res.Room, room.RoomName, res.CheckIn, res.Checkout, res.Rate, res.LastName, res.FirstName, res.Adults, res.Kids
+FROM bshowell.lab7_reservations AS res
+JOIN bshowell.lab7_rooms AS room ON res.Room = room.RoomCode
+WHERE true
+"""
+    params = []
+    if choices["first"] != "":
+        query += " AND res.FirstName LIKE %s "
+        params.append(choices["first"])
+    if choices["last"] != "":
+        query += " AND res.LastName LIKE %s "
+        params.append(choices["last"])
+    if choices["room"] != "":
+        query += " AND res.Room = %s "
+        params.append(choices["room"])
+    if choices["res"] != "":
+        query += " AND res.CODE = %s "
+        params.append(choices["res"])
+    if (date := choices["date"]) != "":
+        if len(date) == 1:
+            query += " AND (res.CheckIn = %s OR res.CheckOut = %s) "
+            params.append(date[0])
+            params.append(date[0])
+        else:  # len(date) == 2
+            query += " AND (res.CheckIn <= %s AND res.CheckOut > %s) "
+            params.append(date[1])
+            params.append(date[0])
+
+    query += " ORDER BY res.CheckIn;"
+
+    cursor.execute(query, params)
+    result = cursor.fetchall()
+    printer.fr4_res(result)
+
+
+def fr5(cursor):
+    request = """
+SELECT Room, Rate, CheckIn, Checkout
+FROM bshowell.lab7_reservations
+WHERE YEAR(CheckIn) = YEAR(CURDATE()) AND YEAR(Checkout) = YEAR(CURDATE())
+OR (YEAR(CheckIn) = YEAR(CURDATE()) AND YEAR(Checkout) = YEAR(CURDATE()) + 1)
+OR (YEAR(CheckIn) = YEAR(CURDATE()) - 1 AND YEAR(Checkout) = YEAR(CURDATE())
+    AND NOT (MONTH(Checkout) = 1 AND DAY(Checkout) = 1))
+"""
+    cursor.execute(request)
+    result = cursor.fetchall()
+    printer.fr5(result)
+
+
+
+
+================================================
+FILE: src/validate.py
+================================================
+import re
+from datetime import datetime
+
+def quit(usr):
+    return usr == "q" or usr == "quit"
+
+def fr1(usr):
+    return usr == "fr1" or usr == "rooms and rates" or usr == "rooms" or usr == "rates"
+
+def fr2(usr):
+    return usr == "fr2" or usr == "reservations" or usr == "res"
+
+def fr2_req(choices):
+    alpha = {"first", "last", "room", "bed"}
+    date = {"start", "end"}
+    num = {"children", "adults"}
+    for key in choices:
+        if key in alpha:
+            if choices[key].isalpha():
+                choices[key] = choices[key].upper()
+            else:
+                raise ValueError("Invalid input in choices", key, choices[key])
+        elif key in date:
+            if not re.match(r"\d{4}-\d{2}-\d{2}", choices[key]) or not is_valid_date(choices[key], "future"):
+                raise ValueError("Invalid date format. Please use YYYY-MM-DD format and make sure date is in the future.")
+        elif key in num:
+            if not choices[key].isdigit():
+                raise ValueError("Invalid input in choices", key, choices[key])
+        else:
+            raise ValueError("Invalid input in choices", key, choices[key])
+    if not is_valid_date(choices["start"]) < is_valid_date(choices["end"]):
+        raise ValueError("Start date must be before end date.", choices["start"], choices["end"])
+    return choices
+
+def is_valid_date(date_str, when=""):
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        if when == "future" and date < datetime.now().date():
+            return False
+        return date
+    except ValueError:
+        return False
+
+def fr3(usr):
+    return usr == "fr3" or usr == "reservation cancellation" or usr == "cancel"
+
+def fr3_req(code):
+    return code is not None and code.isdigit()
+
+def fr3_confirm(usr):
+    return usr == "YES" or usr == "Y" or usr == "NO" or usr == "N"
+
+def fr4(usr):
+    return usr == "fr4" or usr == "detailed reservation information" or usr == "detail" or usr == "info"
+
+def fr4_req(choices):
+    def wildcard(string, type):
+        if type == "alpha":
+            return all(c.isalpha() or c in {'%', '_'} for c in string)
+        if type == "num":
+            return all(c.isdigit() or c in {'%', '_'} for c in string)
+    alpha = {"first", "last", "room"}
+    for key in choices:
+        if choices[key] == "":
+            continue
+        if key in alpha:
+            if wildcard(choices[key], "alpha"):
+                choices[key] = choices[key].upper()
+            else:
+                raise ValueError("Invalid input in choices", key, choices[key])
+        elif key == "date":
+            dates = [choice.strip() for choice in choices[key].split("to")]
+            if len(dates) > 2:
+                raise ValueError("Too many dates. Please use [YYYY-MM-DD] or [YYYY-MM-DD to YYYY-MM-DD] format.")
+            for date in dates:
+                if not re.match(r"\d{4}-\d{2}-\d{2}", date) or not is_valid_date(date):
+                    raise ValueError("Invalid date format. Please use [YYYY-MM-DD] or [YYYY-MM-DD to YYYY-MM-DD] format.")
+            if len(dates) == 2 and not is_valid_date(dates[0]) < is_valid_date(dates[1]):
+                raise ValueError("Start date must be before end date.", dates)
+            choices["date"] = dates
+        elif key == "res":
+            if not wildcard(choices[key], "num"):
+                raise ValueError("Invalid input in choices", key, choices[key])
+        else:
+            raise ValueError("Invalid input in choices", key, choices[key])
+    return choices
+
+def fr5(usr):
+    return usr == "fr5" or usr == "revenue" or usr == "rev"
+
+

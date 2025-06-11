@@ -1,0 +1,619 @@
+Directory structure:
+└── discmetrics-disc-metrics/
+    ├── README.md
+    ├── process.py
+    ├── processTester.py
+    ├── data/
+    │   └── examples.txt
+    ├── models/
+    │   └── pose_landmarker_lite.task
+    └── src/
+        ├── disc_tracker.py
+        ├── functions.py
+        ├── perspective_calculator.py
+        ├── pose_tracker.py
+        └── wireframe_animation.py
+
+================================================
+FILE: README.md
+================================================
+# disc-metrics
+This program uses computer vision to automatically calculate speed, angle, and body position using nothing but a video of a throw. Speed is directly correlated with distance, one of the most sought after skills in disc golf, so having an accurate way to measure speed is super helpful in nailing down what works and what doesn't when making form changes. However, other than expensive equipment such as a radar gun or TechDisc, there really don't exist any tools to easily measure the speed of a throw.
+
+## Determine distance from camera automatically via known radius of disc
+![](https://github.com/DiscMetrics/disc-metrics/blob/examples/data/disc_metrics_circles-cropped-2.gif)
+
+## Separate the disc from the background
+![](https://github.com/DiscMetrics/disc-metrics/blob/examples/data/disc_metrics_threshold-cropped.gif)
+
+## Calculate bounding box of the flying disc, getting position data
+![](https://github.com/DiscMetrics/disc-metrics/blob/examples/data/disc_metrics_disc_flying-cropped.gif)
+
+## Track form using AI model, gathering 3D position data
+![](https://github.com/DiscMetrics/disc-metrics/blob/examples/data/disc_metrics_overlay-cropped.gif)
+
+## Visualize throwing form from any angle
+![](https://github.com/DiscMetrics/disc-metrics/blob/examples/data/disc_metrics_wireframe-cropped.gif)
+
+
+usage: `python3 process.py path_to_video`
+* `python3 process.py --help` for help and list of optional arguments 
+
+
+
+================================================
+FILE: process.py
+================================================
+import cv2
+import numpy as np
+import argparse
+from src import disc_tracker, perspective_calculator, functions, pose_tracker, wireframe_animation
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video', help='path to input video file')
+    parser.add_argument('--no-video', action='store_true', help='do not view popup video')
+    parser.add_argument('--disc_radius', type=float, default=13.6525, help='radius of disc in cm')
+    parser.add_argument('--fps', type=int, default=60, help='frames per second of video')
+    parser.add_argument('--no-pose', action='store_true', help='do not perform pose analysis')
+    args = parser.parse_args()
+
+    radius = args.disc_radius / 100
+
+    vid = cv2.VideoCapture(args.video)
+
+    frames = []
+
+    while vid.isOpened():
+        ret, frame = vid.read()
+        if not ret:
+            break
+
+        frames.append(frame)
+
+        # cv2.imshow('frame',frame)
+        # if cv2.waitKey(5) == ord('q'):
+        #     break
+
+    frames = np.array(frames)
+    vid.release()
+
+    # should move to perspective_calculator.py
+    ratios = []
+    for frame in frames[:args.fps//2]:  # first half second
+        perspective = perspective_calculator.PerspectiveCalculator(radius)
+        ratio = perspective.process_frame(frame)
+        if ratio is not None:
+            ratios.append(ratio)
+        if not args.no_video:
+            cv2.imshow('frame', frame)
+            if cv2.waitKey(30) == ord('q'):
+                cv2.destroyWindow('frame')
+                break
+
+    ratio = np.mean(functions.remove_outliers(ratios))
+
+
+    lastHalf = frames[len(frames)//2:]
+    leftHalf = [frame[:, :frame.shape[1]//2] for frame in lastHalf]
+    discTracker = disc_tracker.DiscTracker(leftHalf, ratio, args.fps, args.no_video)
+    background = discTracker.findBackground()
+    discs = discTracker.findDisc(background)
+    realSpeed, angle, pixelSpeed = discTracker.findDiscSpeedAngle(discs)
+    if not args.no_pose:
+        frameIndex = discTracker.getFirstFrameIndex() + len(frames) // 2
+        poseAnalysisFrames = frames[frameIndex-2*args.fps:frameIndex+1*args.fps]
+        TrimmedFrameIndex = 2 * args.fps
+        rightHalf = [frame[:, frame.shape[1]//2:] for frame in poseAnalysisFrames]
+        cv2.destroyAllWindows()
+        PoseTracker = pose_tracker.PoseTracker(rightHalf, ratio, args.fps, TrimmedFrameIndex)
+        landmarkedPoses, keypointedFrames = PoseTracker.findKeypoints()
+        WireframeAnimator = wireframe_animation.WireframeAnimator(rightHalf, args.fps, landmarkedPoses)
+        for frame in keypointedFrames:
+            cv2.imshow('frame', frame)
+            if cv2.waitKey(60) == ord('q'):
+                break
+        cv2.destroyAllWindows()
+        WireframeAnimator.animateWireframe()
+    # PoseTracker.getReleaseFrame(TrimmedFrameIndex, pixelSpeed, pos)
+    print(f"Speed = {realSpeed} m/s, {realSpeed * 2.23694} mph")
+    print(f"Angle = {angle} radians, {angle * 180 / np.pi} degrees")
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+================================================
+FILE: processTester.py
+================================================
+import cv2
+import numpy as np
+import argparse
+from src import disc_tracker, perspective_calculator, functions, pose_tracker, wireframe_animation
+from time import sleep
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video', help='path to input video file')
+    parser.add_argument('--output', help='path to output video file (optional)')
+    parser.add_argument('--calibration', default='data/calib.txt', help='path to calibration file')
+    parser.add_argument('--disc_radius', type=float, default=13.6525, help='radius of disc in cm')
+    parser.add_argument('--fps', type=int, default=60, help='frames per second of video')
+    args = parser.parse_args()
+
+    radius = args.disc_radius / 100
+
+    vid = cv2.VideoCapture(args.video)
+
+    frames = []
+
+    while vid.isOpened():
+        ret, frame = vid.read()
+        if not ret:
+            break
+
+        frames.append(frame)
+
+        # cv2.imshow('frame',frame)
+        # if cv2.waitKey(5) == ord('q'):
+        #     break
+
+    frames = np.array(frames)
+    vid.release()
+
+    ratios = []
+    for frame in frames[:args.fps//2]:  # first half second
+        perspective = perspective_calculator.PerspectiveCalculator(radius)
+        ratios.append(perspective.process_frame(frame))
+        # cv2.imshow('frame', frame)
+        # if cv2.waitKey(30) == ord('q'):
+        #     break
+
+    ratio = np.mean(functions.remove_outliers(ratios))
+
+    rightHalf = [frame[:, frame.shape[1]//2:] for frame in frames[20:30]]
+
+    PoseTracker = pose_tracker.PoseTracker(rightHalf, ratio, args.fps)
+    landmarkedPoses, keypointedFrames = PoseTracker.findKeypoints()
+    # PoseTracker.createWireFrame(landmarkedPoses, 5)
+
+    WireframeAnimater = wireframe_animation.WireframeAnimator(rightHalf, args.fps, landmarkedPoses)
+    # WireframeAnimater.animateWireframe()
+
+    for frame in keypointedFrames:
+        cv2.imshow('frame', frame)
+        sleep(0.1)
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+if __name__ == '__main__':
+    main()
+
+
+
+================================================
+FILE: data/examples.txt
+================================================
+Some examples of videos that can be used with the tracker.
+
+I changed some stuff in test-git branch
+
+
+================================================
+FILE: models/pose_landmarker_lite.task
+================================================
+[Non-text file]
+
+
+================================================
+FILE: src/disc_tracker.py
+================================================
+import cv2
+import numpy as np
+from time import sleep
+import src.functions as functions
+
+class DiscTracker:
+
+    def __init__(self, videoFrames, pixelToRealRatio, fps, no_video=False):
+        self.frames = videoFrames[:]
+        self.pixelToRealRatio = pixelToRealRatio
+        self.fps = fps
+        self.frameShape = self.frames[0].shape
+        self.no_video = no_video
+        self.firstFrameIndex = None
+
+    def findBackground(self):
+        grayFrames = []
+        for frame in self.frames:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            grayFrames.append(gray)
+        background = np.mean(grayFrames, axis=0).astype('uint8')
+        return background
+
+    def findExtrema(self, contours, imageShape):
+        highestPoint = (0, imageShape[0])
+        lowestPoint = (0, 0)
+        rightmostPoint = (0, 0)
+        leftmostPoint = (imageShape[1], 0)
+
+        for contour in contours:
+            for point in contour[:, 0]:
+                if point[1] < highestPoint[1]: highestPoint = point
+                if point[1] > lowestPoint[1]: lowestPoint = point
+                if point[0] > rightmostPoint[0]: rightmostPoint = point
+                if point[0] < leftmostPoint[0]: leftmostPoint = point
+        return (highestPoint, lowestPoint, leftmostPoint, rightmostPoint)
+
+
+
+    def findDisc(self, background):
+        rects = []
+        lastFrameIndex = None
+        for i, frame in enumerate(self.frames):
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            image_blur = cv2.GaussianBlur(gray, (9,9), 2)
+            absoluteDif = cv2.absdiff(image_blur, background)
+            ret, threshold = cv2.threshold(absoluteDif, 90, 255, cv2.THRESH_BINARY)
+            contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            highestPoint, lowestPoint, leftmostPoint, rightmostPoint = self.findExtrema(contours, frame.shape)
+
+            center_x = (leftmostPoint[0] + rightmostPoint[0]) // 2
+            center_y = (highestPoint[1] + lowestPoint[1]) // 2
+            width = np.abs(rightmostPoint[0] - leftmostPoint[0])
+            height = np.abs(lowestPoint[1] - highestPoint[1])
+
+            if not (rightmostPoint[0] >= frame.shape[1] - 1 or leftmostPoint[0] <= 1 or highestPoint[1] <= 1 or lowestPoint[1] >= frame.shape[0]):
+                rects.append((center_x, center_y, width, height, i, leftmostPoint, rightmostPoint))
+                color = (255, 0, 0)
+            else:
+                color = (0, 0, 255)
+
+            cv2.rectangle(frame, (center_x - width // 2, center_y - height // 2),
+                        (center_x + width // 2, center_y + height // 2), color, 2)
+
+            # if leftmostPoint[0] == frame.shape[1] and rightmostPoint[0] == 0:  # alt method to ignore frames with no disc
+
+            if not leftmostPoint[0] >= rightmostPoint[0]:
+                if self.firstFrameIndex == None: self.firstFrameIndex = i
+                lastFrameIndex = i
+                    # cv2.imshow('left', threshold)
+                    # # cv2.imshow('left', frame)
+                    # if cv2.waitKey(220) == ord('q'):
+                    #     cv2.destroyWindow('left')
+                    #     break
+
+        # print("HERE!!!!", firstFrameIndex, lastFrameIndex)
+        if not self.no_video:
+            for i in range(self.firstFrameIndex, lastFrameIndex + 1):
+                cv2.imshow('frame', self.frames[i])
+                if cv2.waitKey(120) == ord('q'):
+                    cv2.destroyWindow('frame')
+                    break
+        return rects
+
+    def findDiscSpeedAngle(self, discs):
+        dt = 1 / self.fps
+        deltas = []
+        angles = []
+        skip = 1
+        for i in range(1, len(discs)):
+            distance = functions.distanceCalc(
+                (discs[i][0], discs[i][1]),
+                (discs[i-1][0], discs[i-1][1])
+            )
+            if distance <= 0 or discs[i][3] > self.frameShape[0] / 3:
+                skip += 1
+            else:
+                deltas.append(distance / skip)
+                angles.append(np.arctan2(abs(discs[i][5][1] - discs[i][6][1]), abs(discs[i][5][0] - discs[i][6][0])))
+                skip = 1
+        constant = self.pixelToRealRatio * (1 / dt)
+        deltas = functions.remove_outliers(deltas, 1)
+        angles = functions.remove_outliers(angles)
+        print("Angles: ", angles)
+        # print("Ratio:", self.pixelToRealRatio)
+        # print("Deltas: ", deltas)
+        speeds = [val * constant for val in deltas]
+        # median = np.median(speeds)
+        print("Speeds: ", speeds)
+        return np.mean(speeds), np.mean(angles), np.mean([val * (1 / dt) for val in deltas])
+        # return median
+
+    def getFirstFrameIndex(self):
+        return self.firstFrameIndex
+
+
+
+
+================================================
+FILE: src/functions.py
+================================================
+import numpy as np
+
+def distanceCalc(p1, p2):
+    distance = 0
+    p1x = p1[0]
+    p1y = p1[1]
+    p2x = p2[0]
+    p2y = p2[1]
+    deltax = np.abs(p1x - p2x)
+    deltay = np.abs(p1y - p2y)
+    distance = np.sqrt(deltax ** 2 + deltay ** 2)
+
+    return distance
+
+def remove_outliers(lst, m=2):
+    data = np.array(lst)
+    median = np.median(data)
+    mad = np.median(np.abs(data - median))
+    mad = mad if mad else 1.4826  # 1.4826 is the MAD of a standard normal distribution
+    data = data[abs(data - median) < m * mad]
+    return np.ndarray.tolist(data)
+
+
+
+================================================
+FILE: src/perspective_calculator.py
+================================================
+import cv2
+import numpy as np
+
+class PerspectiveCalculator:
+    def __init__(self, R):
+        self.R = R
+
+
+    def process_frame(self, frame):
+        discs = self.detect_disc(frame)
+        radii = []
+        for disc in discs:
+            x, y, r = disc
+            self.draw_circles(frame, x, y, r)
+            radii.append(r)
+        return self.calculate_ratio(max(radii)) if radii else None
+
+    def detect_disc(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (9,9), 2)
+        circles = cv2.HoughCircles(blur, cv2.HOUGH_GRADIENT, 2, 100, param1=200, param2=100)
+        if circles is None:
+            return []
+        circles = np.uint16(np.around(circles))
+        return circles[0]
+
+    def draw_circles(self, frame, x, y, r):
+        cv2.circle(frame, (int(x), int(y)), int(r), (0, 0, 255), 2)
+
+    def calculate_ratio(self, r):
+        return self.R / r
+
+
+
+================================================
+FILE: src/pose_tracker.py
+================================================
+import cv2
+import numpy as np
+from time import sleep
+import src.functions as functions
+import os
+import matplotlib.pyplot as plt
+
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+from mediapipe import solutions
+from mediapipe.framework.formats import landmark_pb2
+
+
+POSE_DETECTION_MODEL_PATH = r'.\models\pose_landmarker_lite.task'
+model_path = os.path.abspath(POSE_DETECTION_MODEL_PATH)
+
+if not os.path.exists(model_path):
+    raise FileNotFoundError(f"Model file not found: {model_path}")
+
+
+class PoseTracker:
+
+    def __init__(self, videoFrames, pixelToRealRatio, fps, frameIndex):
+        self.frames = videoFrames[:]
+        self.pixelToRealRatio = pixelToRealRatio
+        self.fps = fps
+        self.modelPath = POSE_DETECTION_MODEL_PATH
+        self.frameIndex = frameIndex
+
+    def draw_landmarks_on_original_image(self, original_image, detection_result):
+        pose_landmarks_list = detection_result.pose_landmarks
+        annotated_image = np.copy(original_image)
+
+        # Trimmed pixels
+        trim = 60
+
+        # Loop through the detected poses to visualize.
+        for idx in range(len(pose_landmarks_list)):
+            pose_landmarks = pose_landmarks_list[idx]
+
+            # Scale the landmarks back to the original image size
+            scaled_landmarks = []
+            for landmark in pose_landmarks:
+                x_scaled = int(landmark.x * 960)
+                y_scaled = int(landmark.y * 960) + trim
+                scaled_landmarks.append((x_scaled, y_scaled))
+
+            # Draw the scaled pose landmarks on the original image
+            for landmark in scaled_landmarks:
+                cv2.circle(annotated_image, landmark, 5, (0, 255, 0), -1)
+
+        return annotated_image
+
+    def draw_landmarks_on_image(self, rgb_image, detection_result):
+        pose_landmarks_list = detection_result.pose_landmarks
+        annotated_image = np.copy(rgb_image)
+
+        # Loop through the detected poses to visualize.
+        for idx in range(len(pose_landmarks_list)):
+            pose_landmarks = pose_landmarks_list[idx]
+
+            # Draw the pose landmarks.
+            pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+            pose_landmarks_proto.landmark.extend([
+                landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
+            ])
+            solutions.drawing_utils.draw_landmarks(
+                annotated_image,
+                pose_landmarks_proto,
+                solutions.pose.POSE_CONNECTIONS,
+                solutions.drawing_styles.get_default_pose_landmarks_style()
+                )
+        return annotated_image
+
+    def findKeypoints(self):
+        keypointedFrames = []
+        landmarkedPoses = []
+        rgbFrames = np.array(self.frames)[:, :, :, ::-1]
+        for i, frame in enumerate(rgbFrames):
+            trimmed = frame[60:-60,:,:]
+            resized = cv2.resize(trimmed, (256, 256))
+            # cv2.imshow("resized", resized)
+            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=resized)
+
+            BaseOptions = mp.tasks.BaseOptions
+            PoseLandmarker = mp.tasks.vision.PoseLandmarker
+            PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+            VisionRunningMode = mp.tasks.vision.RunningMode
+
+            options = PoseLandmarkerOptions(
+                base_options=BaseOptions(model_asset_path=self.modelPath),
+                running_mode=VisionRunningMode.IMAGE
+                )
+
+            with PoseLandmarker.create_from_options(options) as landmarker:
+                pose_landmarker_result = landmarker.detect(image)
+
+            #Process the detection result. In this case, visualize it.
+            # cv2.imshow("frame", cv2.cvtColor(image.numpy_view(), cv2.COLOR_RGB2BGR))
+            # if cv2.waitKey(0) == ord('q'): break
+            annotated_image = self.draw_landmarks_on_original_image(frame, pose_landmarker_result)
+            # annotated_image = self.draw_landmarks_on_image(image.numpy_view(), pose_landmarker_result)
+            # cv2.imshow("frame", cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+            # if cv2.waitKey(1) == ord('q'): break
+            char = "-" if i % 4 == 0 else "\\" if i % 4 == 1 else "|" if i % 4 == 2 else "/"
+            print(f"\rAnalyzing frame: {i+1} of {len(rgbFrames)} {char}", end="", flush=True)
+
+            landmarkedPoses.append(pose_landmarker_result)
+            keypointedFrames.append(cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+        print()
+        return landmarkedPoses, keypointedFrames
+
+    def createWireFrame( self, landmarkedPoses, frameIndex, ax=plt.axes(projection='3d') ):
+        if type(frameIndex) is not int or frameIndex < 0 or frameIndex >= len(landmarkedPoses):
+            print(f"Invalid frameIndex: {frameIndex}")
+            return None
+
+        ax.cla()
+
+        landmarks = (landmarkedPoses[frameIndex]).pose_landmarks[0]
+
+        headToLeftShoulder = [(landmarks[0].x, landmarks[12].x), (landmarks[0].y, landmarks[12].y), (landmarks[0].z, landmarks[12].z)]
+        headToRightShoulder = [(landmarks[0].x, landmarks[11].x), (landmarks[0].y, landmarks[11].y), (landmarks[0].z, landmarks[11].z)]
+        betweenShoulders = [(landmarks[11].x, landmarks[12].x), (landmarks[11].y, landmarks[12].y), (landmarks[11].z, landmarks[12].z)]
+        rightShoulderToElbow = [(landmarks[12].x, landmarks[14].x), (landmarks[12].y, landmarks[14].y), (landmarks[12].z, landmarks[14].z)]
+        rightElbowToPalm = [(landmarks[14].x, landmarks[16].x), (landmarks[14].y, landmarks[16].y), (landmarks[14].z, landmarks[16].z)]
+        leftShoulderToElbow = [(landmarks[11].x, landmarks[13].x), (landmarks[11].y, landmarks[13].y), (landmarks[11].z, landmarks[13].z)]
+        leftElbowToPalm = [(landmarks[13].x, landmarks[15].x), (landmarks[13].y, landmarks[15].y), (landmarks[13].z, landmarks[15].z)]
+        rightShoulderToHip = [(landmarks[24].x, landmarks[12].x), (landmarks[24].y, landmarks[12].y), (landmarks[24].z, landmarks[12].z)]
+        leftShoulderToHip = [(landmarks[11].x, landmarks[23].x), (landmarks[11].y, landmarks[23].y), (landmarks[11].z, landmarks[23].z)]
+        betweenHips = [(landmarks[24].x, landmarks[23].x), (landmarks[24].y, landmarks[23].y), (landmarks[24].z, landmarks[23].z)]
+        rightHipToKnee = [(landmarks[24].x, landmarks[26].x), (landmarks[24].y, landmarks[26].y), (landmarks[24].z, landmarks[26].z)]
+        rightKneeToAnkle = [(landmarks[26].x, landmarks[28].x), (landmarks[26].y, landmarks[28].y), (landmarks[26].z, landmarks[28].z)]
+        leftHipToKnee = [(landmarks[23].x, landmarks[25].x), (landmarks[23].y, landmarks[25].y), (landmarks[23].z, landmarks[25].z)]
+        leftKneeToAnkle = [(landmarks[25].x, landmarks[27].x), (landmarks[25].y, landmarks[27].y), (landmarks[25].z, landmarks[27].z)]
+
+        lines = [headToLeftShoulder, headToRightShoulder, betweenShoulders, rightShoulderToElbow, rightElbowToPalm, leftShoulderToElbow, leftElbowToPalm, rightShoulderToHip, leftShoulderToHip, betweenHips, rightHipToKnee, rightKneeToAnkle, leftHipToKnee, leftKneeToAnkle]
+
+        for line in lines:
+            ax.plot3D(line[0], line[2], line[1])
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        # ax.show()
+        plt.show()
+
+    def getReleaseFrame(self, speed, point):
+        x0 = self.frames.shape[2] // 2
+        t0 = self.frameIndex
+        x1 = point.x
+        t2 = abs(x1 - x0) / speed + t0
+        return t2
+
+
+
+================================================
+FILE: src/wireframe_animation.py
+================================================
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+class WireframeAnimator:
+
+    def __init__(self, videoFrames, fps, landmarkedPoses):
+        self.frames = videoFrames[:]
+        self.fps = fps
+        self.landmarkedPoses = landmarkedPoses
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111, projection='3d')
+
+    def initialize_animation(self):
+        return self.ax
+
+    def update(self, frameIndex):
+        self.ax.cla()
+        self.ax.grid(False)
+        # self.ax.set_axis_off()
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
+        # self.ax.set_xlim(-.5, .5)
+        # self.ax.set_ylim(-.5, .5)
+        # self.ax.set_zlim(-.5, .5)
+        # print("frame:", frameIndex + 1, "/ total frames:", len(self.landmarkedPoses))
+
+        try:
+            landmarks = self.landmarkedPoses[frameIndex].pose_landmarks[0]
+            headToLeftShoulder = [(landmarks[0].x, landmarks[12].x), (landmarks[0].y, landmarks[12].y), (landmarks[0].z, landmarks[12].z)]
+            headToRightShoulder = [(landmarks[0].x, landmarks[11].x), (landmarks[0].y, landmarks[11].y), (landmarks[0].z, landmarks[11].z)]
+            betweenShoulders = [(landmarks[11].x, landmarks[12].x), (landmarks[11].y, landmarks[12].y), (landmarks[11].z, landmarks[12].z)]
+            rightShoulderToElbow = [(landmarks[12].x, landmarks[14].x), (landmarks[12].y, landmarks[14].y), (landmarks[12].z, landmarks[14].z)]
+            rightElbowToPalm = [(landmarks[14].x, landmarks[16].x), (landmarks[14].y, landmarks[16].y), (landmarks[14].z, landmarks[16].z)]
+            leftShoulderToElbow = [(landmarks[11].x, landmarks[13].x), (landmarks[11].y, landmarks[13].y), (landmarks[11].z, landmarks[13].z)]
+            leftElbowToPalm = [(landmarks[13].x, landmarks[15].x), (landmarks[13].y, landmarks[15].y), (landmarks[13].z, landmarks[15].z)]
+            rightShoulderToHip = [(landmarks[24].x, landmarks[12].x), (landmarks[24].y, landmarks[12].y), (landmarks[24].z, landmarks[12].z)]
+            leftShoulderToHip = [(landmarks[11].x, landmarks[23].x), (landmarks[11].y, landmarks[23].y), (landmarks[11].z, landmarks[23].z)]
+            betweenHips = [(landmarks[24].x, landmarks[23].x), (landmarks[24].y, landmarks[23].y), (landmarks[24].z, landmarks[23].z)]
+            rightHipToKnee = [(landmarks[24].x, landmarks[26].x), (landmarks[24].y, landmarks[26].y), (landmarks[24].z, landmarks[26].z)]
+            rightKneeToAnkle = [(landmarks[26].x, landmarks[28].x), (landmarks[26].y, landmarks[28].y), (landmarks[26].z, landmarks[28].z)]
+            leftHipToKnee = [(landmarks[23].x, landmarks[25].x), (landmarks[23].y, landmarks[25].y), (landmarks[23].z, landmarks[25].z)]
+            leftKneeToAnkle = [(landmarks[25].x, landmarks[27].x), (landmarks[25].y, landmarks[27].y), (landmarks[25].z, landmarks[27].z)]
+            lines = [headToLeftShoulder, headToRightShoulder, betweenShoulders, rightShoulderToElbow, rightElbowToPalm, leftShoulderToElbow, leftElbowToPalm, rightShoulderToHip, leftShoulderToHip, betweenHips, rightHipToKnee, rightKneeToAnkle, leftHipToKnee, leftKneeToAnkle]
+            for line in lines:
+                self.ax.plot3D(line[0], line[2], line[1])
+        except IndexError:
+            pass
+
+        return self.ax,
+
+    def animateWireframe(self):
+        # print("len(self.frames):", len(self.frames))
+        self.num_frames = len(self.frames)
+
+        self.animation = FuncAnimation(self.fig, self.update, frames=self.num_frames, init_func=self.initialize_animation, repeat=False)
+
+        plt.show()
+
