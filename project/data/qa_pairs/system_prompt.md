@@ -9,3 +9,4 @@ Your output must be in **CSV format**, escaping quotes or newlines if applicable
 `question,answer`
 Follow with rows of question–answer pairs in this format:
 `"Question 1","Answer to question 1"`
+Everything question answer pair should be one line, and there should be no double quotes `"` within questions or answers because that messes with csv formatting
