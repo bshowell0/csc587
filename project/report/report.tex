@@ -12,7 +12,6 @@
 \usepackage{textcomp}      % Additional text symbols
 \usepackage{xcolor}        % For text coloring
 \usepackage{url}           % For formatting URLs
-\usepackage{ulem}          % For underlining (\uline)
 
 % For hyperlinking URLs and citations
 \usepackage{hyperref}
@@ -39,13 +38,11 @@
 % =========================================================================
 % TITLE AND AUTHOR INFORMATION
 % =========================================================================
-\title{On-Device Personalized Agent using Fine-tuned Qwen3-0.6B}
+\title{On-Device Personalized Agent: Fine-tuning Qwen for a Private, Custom AI Assistant}
 
 \author{\IEEEauthorblockN{Brandon Howell}
-\IEEEauthorblockA{\textit{Department Name or Project Group} \\
-\textit{University or Organization Name}\\
-City, Country \\
-Email: your.email@example.com}
+\IEEEauthorblockA{\textit{CSC 587} \\
+\textit{California Polytechnic State University, San Luis Obispo}}
 }
 
 % Make the title area
@@ -55,12 +52,8 @@ Email: your.email@example.com}
 % ABSTRACT AND KEYWORDS
 % =========================================================================
 \begin{abstract}
-This project aims to create a personalized AI assistant capable of running directly on an Android smartphone. The core of this work involves fine-tuning a small large language model (LLM), specifically Qwen3-0.6B, with personal user data to create a private, context-aware agent. This personalized model is then integrated into an experimental Android agent framework, based on Gosling, to enable it to perform tasks by interacting with other applications on the device. We address the significant challenges of on-device LLM inference, user data privacy, and agentic control within the resource-constrained and complex mobile environment. The project explores the trade-offs between full fine-tuning and parameter-efficient fine-tuning (PEFT) techniques to achieve a capable yet efficient personalized agent.
+Today's popular AI assistants are overwhelmingly cloud-based, generic, and opaque, posing challenges to user privacy, latency, and personalization. This project directly addresses these shortcomings by developing a proof-of-concept for a truly personal, private, and powerful AI assistant that runs entirely on local hardware. We detail the process of fine-tuning a small but capable large language model (LLM), Qwen2.5-1.5B, with a curated dataset of personal, professional, and project-specific information. The goal was to create a model that could accurately answer questions about a user's own life and work, operating with high performance on resource-constrained hardware without an internet connection. The project successfully demonstrates the feasibility of this approach, achieving a detailed level of personalized recall with an average local inference time of just 469.5 ms. This work sits at the intersection of on-device model deployment, parameter-efficient fine-tuning (PEFT), and the creation of highly specialized AI, tackling the practical challenges of moving AI from the cloud to personal devices. Written in LaTeX as practice for writing real papers.
 \end{abstract}
-
-\begin{IEEEkeywords}
-On-Device AI, Small Language Models, LLM Personalization, Agentic AI, Parameter-Efficient Fine-Tuning (PEFT), Android, Qwen3.
-\end{IEEEkeywords}
 
 
 % =========================================================================
@@ -69,110 +62,150 @@ On-Device AI, Small Language Models, LLM Personalization, Agentic AI, Parameter-
 
 \section{Introduction}
 
-\textit{\uline{Scope:}} This project aims to create a personalized AI assistant capable of running directly on an Android smartphone. The core involves fine-tuning a small, large language model (LLM), specifically Qwen3-0.6B~\cite{qwen}, with personal user data and other Android domain specific information. Subsequently, this personalized model will be integrated into an experimental Android agent framework (potentially a fork of Gosling~\cite{gosling}) to enable it to perform tasks by interacting with other applications on the device.
+Today's most popular AI assistants, such as Siri, Alexa, and Google Assistant, have become integrated into daily life. However, their architecture presents significant limitations. They are overwhelmingly cloud-based, generic in their knowledge, and operate as "black boxes." This project directly addresses these shortcomings by exploring the creation of a truly personal, private, and powerful AI assistant that runs entirely on a user's local hardware.
 
-\textit{\uline{Problem:}} Current large language models, while powerful, are typically generic and operate in the cloud, which raises privacy concerns and lacks deep personalization. Running large models locally on resource-constrained devices like smartphones is computationally challenging. Enabling these models to interact with the device's applications and data in an automated fashion (i.e., act as agents) presents significant technical hurdles in the mobile environment. This project addresses the need for a private, personalized, and capable AI assistant that lives entirely on a user's device.
+\subsection{The Problem and Project Scope}
 
-\textit{\uline{Interest \& Non-Triviality:}} This project is interesting because it tackles the intersection of several cutting-edge AI domains:
+The reliance on cloud infrastructure for current AI assistants introduces several key issues:
 \begin{itemize}
-    \item \textit{\uline{On-Device AI:}} Deploying capable LLMs on mobile phones pushes the boundaries of model optimization and efficient inference while preserving privacy.
-    \item \textit{\uline{LLM Personalization:}} Fine-tuning with personal data explores methods to make AI truly tailored to an individual user's context, habits, and preferences.
-    \item \textit{\uline{Agentic AI on Mobile:}} Integrating an LLM with device automation frameworks like Gosling explores the practical challenges and potential of creating autonomous agents in the complex and varied Android ecosystem.
-    \item \textit{\uline{Parameter-Efficient Fine-Tuning (PEFT):}} Experimenting with techniques like adapters offers insights into efficient model adaptation for resource-constrained environments.
+    \item \textbf{Privacy Concerns:} User data, conversations, and context are sent to and processed on remote servers, creating potential privacy risks and a sense of unease.
+    \item \textbf{Latency and Connectivity:} Functionality is dependent on a stable internet connection, and even with one, network latency (ping) prevents instantaneous responses.
+    \item \textbf{Lack of Deep Personalization:} While they may know a user's name or home address, their understanding is shallow. They lack knowledge of a user's personal context, habits, professional background, or specific projects, making their assistance generic and limited.
+    \item \textbf{Opacity:} The inner workings of these large, proprietary models are hidden, making it impossible to understand their biases or the reasoning behind their outputs.
 \end{itemize}
 
-The combination of fine-tuning a recent small LLM, deploying it locally, integrating personal context, and building agentic capabilities makes this project ambitious and non-trivial. A conceptual diagram is shown in Fig.~\ref{fig:mobile_agent}.
+The scope of this project was to build and evaluate a proof-of-concept AI assistant that is \textbf{100\% local, private, and deeply personalized}. The core of the project involved fine-tuning a small but capable large language model (LLM), specifically \textbf{Qwen2.5-1.5B}, with a curated dataset of my personal, professional, and project-related information. The goal was to create a model that could accurately answer questions about my own life and work, operating with high performance on resource-constrained hardware without needing an internet connection.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.9\linewidth]{images/mobile_agent_image.png}
-\caption{Conceptual diagram of a mobile LLM agent architecture, where the agent reasons about user tasks and interacts with applications on the device. Image from~\cite{mobileagentimage}.}
-\label{fig:mobile_agent}
-\end{figure}
+\subsection{Impressive Results: A Glimpse of True Personalization}
+
+The project successfully demonstrated the feasibility of this approach. The fine-tuned model, running locally, could respond to specific, personal queries with information it could not have previously known. For instance, when prompted with questions about my technical skills or specific coding projects, the model provided accurate and contextually relevant answers.
+
+\textit{Example Interaction:}
+\begin{quote}
+\textbf{User:} What is Brandon's Disc Metrics repo?
+
+\textbf{Fine-tuned Model:} This repository contains the code and documentation for the disc\_metrics project, which provides a simple, fast, and reliable way to measure disc golf throw performance.
+\end{quote}
+
+This level of detailed recall, combining professional skills with specific project summaries, showcases the power of targeted fine-tuning. Critically, these results were achieved with impressive speed, with an average inference time of just \textbf{469.5 ms} on a local machine, including the time to load the model.
+
+This project is non-trivial as it sits at the intersection of several cutting-edge AI fields: on-device model deployment, parameter-efficient fine-tuning (PEFT), and the creation of highly specialized, personalized AI. It tackles the practical challenges of data curation, model adaptation, and performance optimization required to move AI from the cloud onto our personal devices.
 
 \section{Related Work}
-The development of personalized, on-device AI agents draws upon research in several areas.
 
-\textit{\uline{Small Language Models (SLMs):}} The trend towards smaller, capable language models is necessary for on-device deployment. Models like Phi-3, Gemma, and the chosen Qwen3-0.6B~\cite{qwen} from Alibaba represent efforts to achieve high performance with fewer parameters. The Qwen3 series specifically notes optimization for resource-constrained environments~\cite{qwen3blog}.
+The development of a personalized, on-device agent draws upon significant research across multiple domains.
 
-\textit{\uline{On-Device LLM Inference:}} Techniques for efficiently running LLMs on mobile devices are critical. This includes model quantization, optimized inference engines (like \texttt{llama.cpp}, MediaPipe LLM Inference, ONNX Runtime), and leveraging mobile NPUs/GPUs~\cite{efficiency}.
+\subsection{Small Language Models (SLMs)}
+The key enabler for on-device AI is the recent trend towards creating smaller models that retain significant capabilities. While massive models like GPT-4 dominate the headlines, models such as Microsoft's Phi-3, Google's Gemma, and Alibaba's Qwen series are designed for high performance with far fewer parameters. The Qwen model family, in particular, has been noted for its optimization for resource-constrained environments and strong performance in its weight class \cite{qwen2024qwen2}. These SLMs make local inference on devices like smartphones and laptops computationally feasible.
 
-\textit{\uline{LLM Fine-Tuning for Personalization:}} Adapting pre-trained LLMs is a common practice. While full fine-tuning is resource-intensive, \textbf{Parameter-Efficient Fine-Tuning (PEFT)} methods have gained prominence. Techniques like Adapter Tuning~\cite{adapterspaper}, LoRA~\cite{lora}, and QLoRA~\cite{qlora} allow adaptation by training only a small number of additional parameters, as illustrated in Fig.~\ref{fig:adapters}. This is particularly relevant for on-device scenarios.
+\subsection{On-Device LLM Inference}
+Running models efficiently on consumer hardware is a field of active research. The primary techniques include:
+\begin{itemize}
+    \item \textbf{Quantization:} This process reduces the numerical precision of the model's weights (e.g., from 16-bit floating-point to 4-bit integers). This dramatically shrinks the model's storage size and memory footprint, and can accelerate computation on compatible hardware. Frameworks like \texttt{llama.cpp} and its GGUF format are industry standards for deploying quantized models.
+    \item \textbf{Optimized Inference Engines:} Software like MediaPipe LLM Inference, ONNX Runtime, and \texttt{llama.cpp} are specifically designed to leverage the unique hardware of mobile devices (NPUs, GPUs) to run LLM computations as fast as possible.
+\end{itemize}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.9\linewidth]{images/adapters.png}
-\caption{Illustration of adapter-based PEFT. Small, trainable adapter modules are inserted into a frozen pre-trained model, enabling efficient fine-tuning. Image from~\cite{adaptersimage}.}
-\label{fig:adapters}
-\end{figure}
+\subsection{Parameter-Efficient Fine-Tuning (PEFT)}
+Fully fine-tuning an entire LLM, even a small one, is computationally expensive and memory-intensive. PEFT methods have emerged as a more efficient alternative. Instead of updating all of the model's billions of parameters, PEFT techniques freeze the pre-trained model and insert a small number of new, trainable parameters.
+\begin{itemize}
+    \item \textbf{Adapters:} Houlsby et al. \cite{houlsby2019parameter} introduced small, bottleneck-like modules inserted between the layers of a transformer model. Only these adapters are trained, preserving the original model's knowledge.
+    \item \textbf{Low-Rank Adaptation (LoRA):} Hu et al. \cite{hu2021lora} proposed decomposing the weight update matrices during fine-tuning into two smaller, low-rank matrices. This drastically reduces the number of trainable parameters.
+    \item \textbf{QLoRA:} Dettmers et al. \cite{dettmers2023qlora} combined PEFT with quantization, enabling the fine-tuning of a quantized model with low-rank adapters. This technique, which is leveraged by the Unsloth library used in this project, dramatically lowers the memory requirements for fine-tuning, making it possible to train models on consumer-grade GPUs.
+\end{itemize}
 
-\textit{\uline{LLM-Powered Agents:}} Frameworks enabling LLMs to use tools and execute tasks are emerging. Applying these concepts to mobile environments involves interacting with apps and system services. Projects like Gosling~\cite{gosling} specifically explore agentic capabilities on Android, using platform features like Accessibility Services.
+\subsection{LLM-Powered Agents}
+The concept of an AI "agent" that can use tools to perform tasks is a major research direction. Frameworks like LangChain and AutoGPT demonstrated how LLMs could plan and execute complex workflows. Applying this to mobile environments is a newer frontier. Projects like Gosling by Block \cite{block2024gosling} explore how an LLM can interact with the Android operating system, using platform features like Accessibility Services to read the screen and perform actions within other apps. This body of work provided the inspiration for the project's original vision and its future work.
 
 \section{Method}
-This project is developed in two main phases.
 
-\subsection{Phase 1: Personalized On-Device LLM Fine-tuning}
-\begin{enumerate}
-    \item \textit{\uline{Model Selection:}} The core model is Qwen3-0.6B, chosen for its small size and performance~\cite{qwen}.
-    \item \textit{\uline{Data Collection \& Preparation:}} A personal dataset will be curated, including calendar entries, synthesized communication logs, personal notes, app usage patterns, and location habits. The data will be formatted for instruction fine-tuning.
-    \item \textit{\uline{Fine-tuning Implementation:}} Two approaches will be explored using Hugging Face \texttt{transformers} and \texttt{peft}:
-    \begin{itemize}
-        \item \textbf{Full Fine-tuning:} Update all weights of the model.
-        \item \textbf{Adapter-based PEFT:} Freeze the base model and train lightweight adapter modules~\cite{adapterspaper, lora, qlora}.
-    \end{itemize}
-    \item \textit{\uline{On-Device Deployment:}} The fine-tuned models will be prepared for on-device execution via quantization (e.g., 4-bit GGUF) and deployed using an inference engine like \texttt{llama.cpp} with Android bindings.
-\end{enumerate}
+The project's methodology was focused on a three-stage pipeline: (1) curating a high-quality, personalized dataset, (2) fine-tuning the LLM using this dataset, and (3) preparing the model for local deployment.
 
-\subsection{Phase 2: Agentic Integration with Gosling}
-\begin{enumerate}
-    \item \textit{\uline{Framework Setup:}} Fork the Gosling Android agent repository and study its architecture for invoking LLMs and interacting with device capabilities.
-    \item \textit{\uline{Model Integration:}} Modify the forked Gosling code to use the personalized, locally deployed Qwen3-0.6B model (likely the PEFT version) as its reasoning engine.
-    \item \textit{\uline{Tool Definition \& Use:}} Explore Gosling's mechanisms for defining and using tools, potentially implementing custom capabilities via a "mobile MCP" provider.
-    \item \textit{\uline{Task Automation:}} Define and test simple, multi-step tasks that require the agent to use the personalized LLM and interact with other apps via Gosling's capabilities.
-\end{enumerate}
+The overall system is illustrated in the flowchart in Fig.~\ref{fig:flowchart}. The primary inputs are my personal data and public code repositories, and the final output is a single, quantized model file (in GGUF format) capable of running locally.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/flowchart.pdf}
+    \caption{Project Methodology Flowchart.}
+    \label{fig:flowchart}
+\end{figure}
+
+\subsection{Data Collection and Preparation}
+The quality of a fine-tuned model is entirely dependent on the quality of its training data. A multi-faceted dataset was created:
+\begin{itemize}
+    \item \textbf{Professional Data:} Information from my resume, answers to typical interview questions, and descriptions of my technical skills and experiences were compiled.
+    \item \textbf{Personal Data:} A brief biography including my name, hobbies, and key interests was written.
+    \item \textbf{Coding Projects Data:} This was the most complex part of the data pipeline. A Python script was developed to process my public GitHub repositories. For each chosen repository, the script would:
+    \begin{enumerate}
+        \item Read the \texttt{README.md} file and key source code files.
+        \item Use a more powerful LLM (e.g., Gemini 2.5 Pro via an API or Qwen3 32B locally) to generate a detailed, high-level summary of the project's purpose, architecture, and key features.
+        \item Feed this summary back into the LLM with a specific prompt to generate a series of question-and-answer pairs based on the summary. For example: "What is the main goal of this project?" or "What technologies were used in this project?"
+    \end{enumerate}
+\end{itemize}
+This synthetic data generation approach created a rich, structured dataset in the instruction-following format required for fine-tuning. The final dataset was formatted as a JSONL file, where each line contained a dictionary with "instruction," "input," and "output" keys, following a standard template.
+
+\subsection{Fine-Tuning the Model}
+The fine-tuning process was implemented using Unsloth, a library that dramatically accelerates Hugging Face training and reduces memory usage.
+\begin{itemize}
+    \item \textbf{Model:} The base model chosen was \textbf{Qwen2.5-1.5B}, a model from Alibaba known for its strong performance in the small model category.
+    \item \textbf{Framework:} The fine-tuning script was adapted from Unsloth's official examples. It utilized the Hugging Face \texttt{transformers} library for model handling, \texttt{peft} for implementing the QLoRA technique, and \texttt{bitsandbytes} for 4-bit quantization.
+    \item \textbf{Process:} The script loaded the 4-bit quantized Qwen2.5-1.5B model, added LoRA adapters to it, and then trained \textit{only} these adapters on the custom-generated dataset. This PEFT approach ensured that the training process was fast and could run on a single, freely available Google Colab T4 GPU. The entire training process completed in under six minutes.
+\end{itemize}
+
+\subsection{Model Conversion for Deployment}
+After fine-tuning, the trained LoRA adapters were merged with the base model weights to create a complete, personalized model. This model was then converted from the Hugging Face format to the \textbf{GGUF (GPT-Generated Unified Format)}. GGUF is the standard format used by the \texttt{llama.cpp} inference engine, which is highly optimized for running LLMs efficiently on CPUs and GPUs across various platforms, including desktops and mobile devices. This final GGUF file is the self-contained, portable assistant, ready for local use.
 
 \section{Evaluation}
-Success will be evaluated based on experimentation depth and insights gained.
+The evaluation of the project was two-fold, combining quantitative performance metrics with a qualitative assessment of the model's personalized knowledge and behavior.
 
-\subsection{Phase 1 Evaluation (Personalized LLM)}
+\subsection{Quantitative Results}
+The performance metrics collected were highly encouraging and aligned with the project's goal of creating a fast and efficient local model.
 \begin{itemize}
-    \item \textit{\uline{Dataset:}} A held-out set of prompts based on the personal data domain.
-    \item \textit{\uline{Metrics:}}
-    \begin{itemize}
-        \item \textbf{Qualitative Assessment:} Subjective evaluation of the model's responses for personalization, accuracy, coherence, and tone compared to the base model.
-        \item \textbf{Quantitative Assessment (Exploratory):} Measure perplexity, model storage size, inference latency, and peak memory usage on the Android device.
-    \end{itemize}
-    \item \textit{\uline{Comparison:}} Directly compare the effectiveness and resource trade-offs between the fully fine-tuned and adapter-based models.
+    \item \textbf{Training Performance:} On a single T4 GPU provided by Google Colab, the model was fine-tuned in just \textbf{5 minutes and 44 seconds}. During this time, both the training and validation loss consistently decreased, indicating that the model was successfully learning the patterns in the custom dataset without significant overfitting (see Fig.~\ref{fig:training_loss}).
+    \item \textbf{Inference Speed:} The final, quantized GGUF model demonstrated excellent performance. The average time to generate a response, including the initial loading of the model into memory, was \textbf{469.5 milliseconds}. This is effectively instantaneous for a user, a stark contrast to the potential latency of cloud-based assistants.
 \end{itemize}
 
-\subsection{Phase 2 Evaluation (Agentic Capabilities)}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/training_loss.png}
+    \caption{Training and validation loss during fine-tuning.}
+    \label{fig:training_loss}
+\end{figure}
+
+\subsection{Qualitative Results}
+The primary goal was to see if the model understood me. The results here were promising but also revealed some classic limitations of smaller LLMs.
 \begin{itemize}
-    \item \textit{\uline{Dataset:}} A set of defined, multi-step tasks requiring interaction with device features or apps.
-    \item \textit{\uline{Metrics:}}
-    \begin{itemize}
-        \item \textbf{Task Completion Rate:} Percentage of tasks successfully completed.
-        \item \textbf{Qualitative Assessment:} Evaluate planning ability, tool usage effectiveness, error handling, and overall usefulness.
-        \item \textbf{Efficiency (Observational):} Note the time and steps required for task completion.
-    \end{itemize}
+    \item \textbf{Successes:} The model excelled at recalling information it was explicitly trained on. It could accurately summarize my coding projects, list my technical skills, and answer questions about my background. It successfully connected different pieces of information, as shown in the Python/\texttt{disc\_metrics} example in the introduction. This confirmed that the fine-tuning was effective.
+    \item \textbf{Shortcomings and Hallucinations:} The model was not without its flaws. The most common issue was \textbf{hallucination}, where it would correctly recall a piece of information but place it in the wrong context. For example, it correctly identified and described my \texttt{disc\_metrics.ipynb} project, but then incorrectly stated it was part of a homework assignment for a specific class, a detail it invented by conflating two separate pieces of information from its training data. This is a known challenge with LLMs, especially smaller ones that may have a weaker grasp on factual boundaries.
+    \item \textbf{Integration Challenges:} A practical shortcoming was discovered during testing. The model was fine-tuned on a very specific instruction format (\texttt{\#\#\# Instruction: ... \#\#\# Input: ... \#\#\# Response: ...}). When loaded into generic front-end applications that did not support custom prompt templates, the model's outputs appeared nonsensical. This is not a failure of the model itself, but a reminder that the entire system, from user interface to model, must be aligned.
 \end{itemize}
 
-\section{Milestones}
-The project timeline is structured as follows:
+\subsection{Progression and Comparison to Expectations}
+The project's progression was iterative. The initial results with a small, quickly generated dataset showed promise but lacked depth. The second iteration focused heavily on improving the dataset creation pipeline, particularly for the GitHub repositories, which significantly enhanced the model's recall ability.
+
+Compared to the initial hypothesis in the project proposal, the core goal of creating a personalized, local LLM was successfully met and even exceeded expectations in terms of performance. The pivot away from the Android Agent (Gosling) integration was a necessary adjustment of scope due to the complexities of that framework. While the fine-tuning was a success, the results also confirmed the hypothesis that small models are prone to hallucination, reinforcing the need for strategies like Retrieval-Augmented Generation (RAG) in future work.
+
+\section{Conclusions and Future Work}
+
+\subsection{Conclusion}
+This project successfully demonstrated that it is possible to create a fast, private, and deeply personalized AI assistant by fine-tuning a small language model on a curated dataset. The resulting model runs entirely locally, responds nearly instantly, and possesses a nuanced understanding of my professional and personal context that is unattainable with generic, cloud-based assistants. The use of parameter-efficient fine-tuning (PEFT) with Unsloth proved to be a highly effective and accessible method for achieving this personalization on consumer-grade hardware. While the model exhibits some common LLM weaknesses like hallucination, it serves as a powerful proof-of-concept for the future of truly personal AI.
+
+\subsection{Future Work}
+The project's outcome opens up numerous avenues for future exploration. The original vision of creating an on-device agent remains a compelling next step.
 \begin{itemize}
-    \item \textit{\uline{Week 6:}} Download Qwen model, test baseline capabilities, and begin curating the fine-tuning dataset.
-    \item \textit{\uline{Week 7:}} Fine-tune and test the personalized model. Evaluate its qualitative and quantitative improvements over the base model.
-    \item \textit{\uline{Week 8:}} Fork the Gosling repository and begin integration work for the agent framework.
-    \item \textit{\uline{Week 9:}} Combine the fine-tuned Qwen3 with Gosling to automate tasks. Test and gather quantitative results on task success.
-    \item \textit{\uline{Week 10:}} Finalize features, complete testing and evaluations, and prepare the final report.
+    \item \textbf{AI Agent Integration:} The original plan to integrate the model with an Android agent framework like \textbf{Gosling} \cite{block2024gosling} is the most direct path forward. This would involve modifying Gosling to use the local, fine-tuned Qwen model as its reasoning engine, allowing the assistant to not just answer questions but also perform actions on the device.
+    \item \textbf{Retrieval-Augmented Generation (RAG):} To combat hallucination and provide the model with access to up-to-the-minute information, a RAG system could be implemented. This would involve creating a vector database of personal documents on the device.
+    \item \textbf{Real-Time Context:} The agent could be enhanced by giving it access to real-time information, such as current location, calendar notifications, or on-screen content.
+    \item \textbf{Expanding the Dataset and Model:} As newer, more capable small models are released, this process could be repeated to improve the agent's reasoning abilities. The dataset could also be expanded to include more diverse personal data.
+    \item \textbf{Multi-Modality:} Future work could explore multi-modal inputs, allowing the assistant to respond to voice commands or even understand information from images taken with the device's camera.
+    \item \textbf{Personalized Code Assistant:} The model's knowledge of my coding projects could be leveraged to create a specialized code assistant to help with ideation and recall.
 \end{itemize}
 
-\section{Task Assignments}
-This is a solo project, so all tasks will be handled by the author.
+In summary, this project has laid a strong foundation. The future lies in building upon this personalized knowledge base to create a capable, autonomous agent that truly works for the user, on the user's own terms.
+
 
 % =========================================================================
 % BIBLIOGRAPHY
 % =========================================================================
-
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 

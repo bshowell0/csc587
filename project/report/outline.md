@@ -22,13 +22,11 @@ The project successfully demonstrated the feasibility of this approach. The fine
 
 ***Example Interaction:***
 
-> **User:** What is Brandon's experience with Python, and can you summarize his `disc_metrics.ipynb` project?
+> **User:** What is Brandon's Disc Metrics repo?
 >
-> **Fine-tuned Model:** Brandon has extensive experience with Python, using it for data analysis with libraries like Pandas and NumPy, web development with Flask, and machine learning with PyTorch. His `disc_metrics.ipynb` project is a Jupyter Notebook that analyzes performance metrics from a storage system. It reads raw data, cleans it, calculates key statistics like IOPS and latency, and generates visualizations to identify performance bottlenecks.
+> **Fine-tuned Model:** This repository contains the code and documentation for the disc_metrics project, which provides a simple, fast, and reliable way to measure disc golf throw performance.
 
 This level of detailed recall, combining professional skills with specific project summaries, showcases the power of targeted fine-tuning. Critically, these results were achieved with impressive speed, with an average inference time of just **469.5 ms** on a local machine, including the time to load the model.
-
-*[NOTE TO BRANDON: This is a great place to insert a screenshot of a terminal or a simple UI showing a real question and the model's accurate, personalized response.]*
 
 This project is non-trivial as it sits at the intersection of several cutting-edge AI fields: on-device model deployment, parameter-efficient fine-tuning (PEFT), and the creation of highly specialized, personalized AI. It tackles the practical challenges of data curation, model adaptation, and performance optimization required to move AI from the cloud onto our personal devices.
 
@@ -55,23 +53,8 @@ The project's methodology was focused on a three-stage pipeline: (1) curating a 
 
 The overall system is illustrated in the flowchart below. The primary inputs are my personal data and public code repositories, and the final output is a single, quantized model file (in GGUF format) capable of running locally.
 
-*[NOTE TO BRANDON: You could create a visual diagram for this flowchart in a tool like diagrams.net and insert it here.]*
+![project flowchart](./images/flowchart.svg)
 
-```
-+--------------------------+     +------------------------+     +------------------------+
-|   Input Data Sources     | --> | Dataset Creation       | --> |   Fine-Tuning Process  |
-| - GitHub Repositories    |     |   (Python Scripts &    |     |      (Unsloth & PEFT)  |
-| - Resume Information     |     |    LLM for generation) |     | - Qwen2.5-1.5B Base    |
-| - Personal Bio/Interests |     +------------------------+     | - Train on Custom Data |
-+--------------------------+               |                    +-----------+------------+
-                                           |                                |
-                                           v                                v
-+--------------------------+     +------------------------+     +------------------------+
-|   Final Deployed Model   | <-- |   Model Conversion     | <-- |   Personalized Model   |
-| - GGUF Quantized File    |     |      (to GGUF)         |     |   (Fine-tuned Adapters)|
-| - Ready for llama.cpp    |     +------------------------+     +------------------------+
-+--------------------------+
-```
 **Figure 1: Project Methodology Flowchart**
 
 **1. Data Collection and Preparation**
@@ -81,7 +64,7 @@ The quality of a fine-tuned model is entirely dependent on the quality of its tr
 *   **Personal Data:** A brief biography including my name, hobbies, and key interests was written.
 *   **Coding Projects Data:** This was the most complex part of the data pipeline. A Python script was developed to process my public GitHub repositories. For each chosen repository, the script would:
     1.  Read the `README.md` file and key source code files.
-    2.  Use a powerful LLM (e.g., GPT-4 via an API) to generate a detailed, high-level summary of the project's purpose, architecture, and key features.
+    2.  Use a more powerful LLM (e.g., Gemini 2.5 Pro via an API or Qwen3 32B locally) to generate a detailed, high-level summary of the project's purpose, architecture, and key features.
     3.  Feed this summary back into the LLM with a specific prompt to generate a series of question-and-answer pairs based on the summary. For example: "What is the main goal of this project?" or "What technologies were used in this project?"
 
 This synthetic data generation approach created a rich, structured dataset in the instruction-following format required for fine-tuning. The final dataset was formatted as a JSONL file, where each line contained a dictionary with "instruction," "input," and "output" keys, following a standard template.
@@ -107,13 +90,13 @@ The performance metrics collected were highly encouraging and aligned with the p
 *   **Training Performance:** On a single T4 GPU provided by Google Colab, the model was fine-tuned in just **5 minutes and 44 seconds**. During this time, both the training and validation loss consistently decreased, indicating that the model was successfully learning the patterns in the custom dataset without significant overfitting.
 *   **Inference Speed:** The final, quantized GGUF model demonstrated excellent performance. The average time to generate a response, including the initial loading of the model into memory, was **469.5 milliseconds**. This is effectively instantaneous for a user, a stark contrast to the potential latency of cloud-based assistants.
 
-*[NOTE TO BRANDON: Insert your training/validation loss curve graph here. It's a powerful visual to show the model was learning correctly.]*
+![training loss](./images/training%20loss.png)
 
 **Qualitative Results**
 
-The primary goal was to see if the model *understood* me. The results here were promising but also revealed some classic limitations of smaller LLMs.
+The primary goal was to see if the model understood me. The results here were promising but also revealed some classic limitations of smaller LLMs.
 *   **Successes:** The model excelled at recalling information it was explicitly trained on. It could accurately summarize my coding projects, list my technical skills, and answer questions about my background. It successfully connected different pieces of information, as shown in the Python/`disc_metrics` example in the introduction. This confirmed that the fine-tuning was effective.
-*   **Shortcomings and Hallucinations:** The model was not without its flaws. The most common issue was **hallucination**, where it would correctly recall a piece of information but place it in the wrong context. For example, it correctly identified and described my `disc_metrics.ipynb` project, but then incorrectly stated it was part of a homework assignment for a specific class—a detail it invented by conflating two separate pieces of information from its training data. This is a known challenge with LLMs, especially smaller ones that may have a weaker grasp on factual boundaries.
+*   **Shortcomings and Hallucinations:** The model was not without its flaws. The most common issue was **hallucination**, where it would correctly recall a piece of information but place it in the wrong context. For example, it correctly identified and described my `disc_metrics.ipynb` project, but then incorrectly stated it was part of a homework assignment for a specific class, a detail it invented by conflating two separate pieces of information from its training data. This is a known challenge with LLMs, especially smaller ones that may have a weaker grasp on factual boundaries.
 *   **Integration Challenges:** A practical shortcoming was discovered during testing. The model was fine-tuned on a very specific instruction format (`### Instruction: ... ### Input: ... ### Response: ...`). When loaded into generic front-end applications that did not support custom prompt templates, the model's outputs appeared nonsensical. This is not a failure of the model itself, but a reminder that the entire system, from user interface to model, must be aligned.
 
 **Progression and Comparison to Expectations**
